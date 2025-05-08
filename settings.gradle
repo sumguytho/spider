@@ -14,4 +14,4 @@ plugins {
 
 rootProject.name = 'spiral-deobfuscator'
 // include("asm-mod", "spider", "spider-cli")
-include("spider-cli")
+include("spider", "spider-cli")

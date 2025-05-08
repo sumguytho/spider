@@ -1,26 +1,10 @@
 plugins {
-    id 'application'
+    id 'java-library'
 }
 
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
-}
-
-application {   
-    mainClass = "sumguytho.spider.cli.SpiderCli"
-}
-
-dependencies {
-    implementation project(":spider")
-}
-
-jar {
-    manifest {
-    	attributes (
-    	    "Main-Class": "sumguytho.spider.cli.SpiderCli"
-    	)
-    }
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
