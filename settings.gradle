@@ -12,5 +12,6 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.4.0'
 }
 
-rootProject.name = 'spiral_deobfuscator'
-include('lib')
+rootProject.name = 'spiral-deobfuscator'
+// include("asm-mod", "spider", "spider-cli")
+include("spider-cli")
