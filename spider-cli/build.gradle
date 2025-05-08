@@ -7,8 +7,10 @@ repositories {
     mavenCentral()
 }
 
+mainClassName = "sumguytho.spider.cli.SpiderCli"
+
 application {   
-    mainClass = "sumguytho.spider.cli.SpiderCli"
+    mainClass = "$mainClassName"
 }
 
 dependencies {
@@ -18,7 +20,7 @@ dependencies {
 jar {
     manifest {
     	attributes (
-    	    "Main-Class": "sumguytho.spider.cli.SpiderCli"
+    	    "Main-Class": "$mainClassName"
     	)
     }
 }

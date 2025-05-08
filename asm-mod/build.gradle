@@ -1,4 +1,5 @@
 plugins {
+    // Apply the java-library plugin for API and implementation separation.
     id 'java-library'
 }
 
@@ -8,7 +9,8 @@ repositories {
 }
 
 dependencies {
-    implementation project(":asm-mod")
+    // I tested everything against 9.4 which was latest at the time
+    implementation 'org.ow2.asm:asm:9.4'
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
