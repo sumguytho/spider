@@ -12,6 +12,7 @@ public class SpiderCli {
 			
 		}
 		Spider sp = new Spider();
+		System.out.println("Transforming " + args[0]);
 		sp.transform(args[0]);
 	}
 
