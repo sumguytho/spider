@@ -3408,10 +3408,14 @@ public class ClassReader {
   }
 
   /**
-   * Computes the implicit frame of the method currently being parsed (as defined in the given
-   * {@link Context}) and stores it in the given context.
+   * Computes the number of locals of an implicit frame of the method
+   * currently being parsed (as defined in the given {@link Context}).
+   * Doesn't change anything in context.
+   * Follows the logic of computeImplicitFrame.
    *
    * @param context information about the class being parsed.
+   * 
+   * @return number of locals of an implicit frame.
    */
   private int computeImplicitFrameLocals(final Context context) {
     String methodDescriptor = context.currentMethodDescriptor;
@@ -3466,7 +3470,8 @@ public class ClassReader {
 
   /**
    * Reads a JVMS 'verification_type_info' structure at {@link verificationTypeInfoOffset} and checks whether
-   * it is valid and breaches {@link verificationTypeInfoEndOffset}.
+   * it is valid and breaches {@link verificationTypeInfoEndOffset}. This is essentially a dry run version
+   * of readVerificationTypeInfo.
    *
    * @param verificationTypeInfoOffset the start offset of the 'verification_type_info' structure to
    *     read.
@@ -3534,6 +3539,9 @@ public class ClassReader {
   /**
    * A lookahead check to see whether current stack_map_frame entry, records frame data in
    * the process that can be accessed through a returned {@link StackFrameLookupResult} structure.
+   * Follows the logic of readStackMapFrame.
+   * 
+   * TODO: add common code that adds 2 to offsetDelta of all the 3 byte frames (same, chop, etc.).
    * 
    * @param stackMapFrameOffset the offset of stack_map_frame in {@link #classFileBuffer}
    * @param stackMapTableEndOffset the offset of the next attribute after StackMapTable in
@@ -3682,7 +3690,7 @@ public class ClassReader {
         			System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",
         					currentOffset, res.nextFrameOffset));
         			if (currentOffset == res.nextFrameOffset) {
-        				throw new RuntimeException();
+        				throw new IllegalStateException("A frame with offsetDelta=0 has been skipped but currentOffset didn't advance.");
         			}
         			currentOffset = res.nextFrameOffset;
         			deobfuscationContext.stackMapFrames++;
