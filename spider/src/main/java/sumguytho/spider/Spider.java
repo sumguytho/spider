@@ -44,23 +44,32 @@ public class Spider {
 			Enumeration entries = jarFile.entries();
 			while (entries.hasMoreElements()) {
 			    JarEntry jarEntryIn = (JarEntry) entries.nextElement();
-			    final String className = jarEntryIn.getName();
-			    if (!isClassFilename(className)) {
-				    System.out.println("Skipping " + className);
-			    	continue;
+			    String filepath = jarEntryIn.getName();
+			    // ZipOutputStream created empty directories for paths
+			    // ending with a slash
+			    if (jarEntryIn.isDirectory() && !filepath.endsWith(File.separator)) {
+			    	filepath += File.separator;
 			    }
+			    JarEntry jarEntryOut = new JarEntry(filepath);
 			    
-			    JarEntry jarEntryOut = new JarEntry(className);
 			    destJarFile.putNextEntry(jarEntryOut);
 		        try (InputStream entryStreamIn = jarFile.getInputStream(jarEntryIn)) {
-		        	byte[] transformedClass = transform(entryStreamIn.readAllBytes());
-		        	destJarFile.write(transformedClass);
+				    if (!jarEntryIn.isDirectory()) {
+			        	byte[] classBytes = entryStreamIn.readAllBytes();
+					    if (isClassFilename(filepath)) {
+					    	classBytes = transform(classBytes);
+					    }
+					    else {
+						    System.out.println("Skipping deobfuscation for" + filepath);
+					    }
+			        	destJarFile.write(classBytes);
+				    }
 		        }
 		        finally {
 		        	destJarFile.closeEntry();
 		        }
-			    System.out.println("Successfully written " + className);
 			}
+			System.out.println("Finished writing " + jarOutName);
 			
 		}
 		catch(IOException ex) { System.out.println(ex.toString()); }
