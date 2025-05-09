@@ -3681,7 +3681,6 @@ public class ClassReader {
         		else {
         			System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",
         					currentOffset, res.nextFrameOffset));
-        			System.out.flush();
         			if (currentOffset == res.nextFrameOffset) {
         				throw new RuntimeException();
         			}
