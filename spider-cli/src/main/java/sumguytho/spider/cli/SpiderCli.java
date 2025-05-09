@@ -5,10 +5,14 @@ import sumguytho.spider.Spider;
 public class SpiderCli {
 
 	public static void main(String[] args) {
-		System.out.println("spider-cli");
+		if (args.length != 1) {
+			System.out.println("usage: spider-cli <path-to-jar>");
+			System.out.println("Outputs deobfuscated jar to <path-to-jar>.out.");
+			System.exit(1);
+			
+		}
 		Spider sp = new Spider();
-		System.out.println(String.format("spider int: %d", sp.getInt()));
-		System.out.println(String.format("spider asm int: %d", sp.getAsmInt()));
+		sp.transform(args[0]);
 	}
 
 }

@@ -8,11 +8,6 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    // I tested everything against 9.4 which was latest at the time
-    implementation 'org.ow2.asm:asm:9.4'
-}
-
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {

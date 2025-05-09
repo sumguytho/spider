@@ -1,6 +1,6 @@
 package sumguytho.asm.mod;
 
-import org.objectweb.asm.TypeReference;
+import sumguytho.asm.mod.TypeReference;
 
 public class Test {
 
