@@ -3,6 +3,7 @@ package sumguytho.spider;
 import sumguytho.asm.mod.Opcodes;
 import sumguytho.asm.mod.ClassReader;
 import sumguytho.asm.mod.ClassWriter;
+import sumguytho.asm.mod.tree.ClassNode;
 
 import java.util.jar.JarFile;
 import java.util.jar.JarEntry;
@@ -20,8 +21,13 @@ public class Spider {
 	public int getInt() { return 0; }
 	public int getAsmInt() { return Opcodes.ASM9; }
 	
-	public byte[] transform(byte[] clazz) {
-		return new byte[]{};
+	public byte[] transform(byte[] classBytes) {
+		ClassReader cr = new ClassReader(classBytes);
+		ClassNode classNode = new ClassNode();
+		cr.accept(classNode, 0);
+		ClassWriter cw = new ClassWriter(0);
+		classNode.accept(cw);
+		return cw.toByteArray();
 	}
 	
 	public boolean isClassFilename(final String filename) {
@@ -47,13 +53,8 @@ public class Spider {
 			    JarEntry jarEntryOut = new JarEntry(className);
 			    destJarFile.putNextEntry(jarEntryOut);
 		        try (InputStream entryStreamIn = jarFile.getInputStream(jarEntryIn)) {
-		        	byte[] buffer = new byte[1024];
-		        	while (true) {
-		        		int read = entryStreamIn.read(buffer);
-		        		if (read == -1)
-		                    break;
-		        		destJarFile.write(buffer, 0, read);
-		        	}
+		        	byte[] transformedClass = transform(entryStreamIn.readAllBytes());
+		        	destJarFile.write(transformedClass);
 		        }
 		        finally {
 		        	destJarFile.closeEntry();
