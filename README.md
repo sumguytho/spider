@@ -17,3 +17,7 @@ frame breaches stack map table, offsetdelta is gibberish, those are padding byte
 frame is within stack map table but frame extends beyond it, the read overextended frame, all frames afterwards aren't valid
 
 Next frame is placed at unreachable bytecode position. In this case it's never reached by "real" code but actually parsed by "dry" code which is why I get different results. The function that looks up stack frames should be able to report end of parsing directly. It should also be noted that in case same frame extends beyond bytecode it can just be removed but it it's some other frame type it should be registered and pointed at bytecode end.
+
+# Resources
+
+ - [Java SE 20 JVMS-4, Class File format](https://docs.oracle.com/javase/specs/jvms/se20/html/jvms-4.html)

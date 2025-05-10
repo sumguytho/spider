@@ -3548,6 +3548,8 @@ public class ClassReader {
    * the process that can be accessed through a returned {@link StackFrameLookupResult} structure.
    * Follows the logic of readStackMapFrame.
    * 
+   * This function also checks whether a frame is going to be used based on its position in bytecode.
+   * 
    * TODO: add common code that adds 2 to offsetDelta of all the 3 byte frames (same, chop, etc.).
    * 
    * @param stackMapFrameOffset the offset of stack_map_frame in {@link #classFileBuffer}
@@ -3557,8 +3559,10 @@ public class ClassReader {
    */
   private StackFrameLookupResult lookupStackFrame(
 	  final int stackMapFrameOffset,
-	  final int stackMapTableEndOffset
+	  final int stackMapTableEndOffset,
+	  final int maxBytecode
   ) {
+	  // TODO: this is probably bad to constantly allocate a lot of small objects
 	  StackFrameLookupResult retv = new StackFrameLookupResult();
 	  if (stackMapTableEndOffset - stackMapFrameOffset < 1) {
 		  return retv;
@@ -3575,78 +3579,66 @@ public class ClassReader {
 	  }
 	  else if (frameType < Frame.RESERVED) {
 		  // same_locals_1_stack_item_frame
-		  // one stack item
 		  retv.stackCount = 1;
 		  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, 1);
 		  retv.isValid = retv.nextFrameOffset > 0;
 		  return retv;
 	  }
-	  else if (frameType == Frame.FULL_FRAME) {
-		  // full_frame
-		  // offset_delta + number_of_locals
-		  if (stackMapTableEndOffset - currentOffset < 4) {
-			  return retv;
-		  }
-		  retv.offsetDelta = readUnsignedShort(currentOffset);
-		  retv.localCount = readUnsignedShort(currentOffset + 2);
-		  currentOffset += 4;
-		  // local variables
-		  currentOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCount);
-		  if (currentOffset < 0) {
-			  return retv;
-		  }
-		  // number_of_stack_items
-		  if (stackMapTableEndOffset - currentOffset < 2) {
-			  return retv;
-		  }
-		  retv.stackCount = readUnsignedShort(currentOffset);
-		  currentOffset += 2;
-		  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.stackCount);
-		  retv.isValid = retv.nextFrameOffset > 0;
-		  return retv;
-	  }
-	  else if (frameType >= Frame.APPEND_FRAME) {
-		  // append_frame
-		  // offset_delta
+	  else if (frameType >= Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
+		  // common code for full_frame, append_frame, chop_frame, same_frame_extended and same_locals_1_extended
 		  if (stackMapTableEndOffset - currentOffset < 2) {
 			  return retv;
 		  }
 		  retv.offsetDelta = readUnsignedShort(currentOffset);
 		  currentOffset += 2;
-		  retv.localCountDelta = retv.frameType - Frame.SAME_FRAME_EXTENDED;
-		  // local variables
-		  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCountDelta);
-		  retv.isValid = retv.nextFrameOffset > 0;
-		  return retv;
-	  }
-	  else if (frameType >= Frame.CHOP_FRAME) {
-		  // same_frame_extended
-		  // chop_frame
-		  // offset_delta
-		  if (stackMapTableEndOffset - currentOffset < 2) {
+		  
+		  if (frameType == Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
+			  // same_locals_1_extended
+			  // one stack item
+			  retv.stackCount = 1;
+			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, 1);
+			  retv.isValid = retv.nextFrameOffset > 0;
 			  return retv;
 		  }
-		  retv.offsetDelta = readUnsignedShort(currentOffset);
-		  currentOffset += 2;
-		  // TODO: on commit: there was a bug in lookup: next frame for chop_frame wasn't being set
-		  retv.nextFrameOffset = currentOffset;
-		  retv.localCountDelta = Frame.SAME_FRAME_EXTENDED - retv.frameType;
-		  retv.isValid = true;
-		  return retv;
-	  }
-	  else if (frameType == Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
-		  // same_locals_1_stack_item_frame_extended
-		  // offset_delta
-		  if (stackMapTableEndOffset - currentOffset < 2) {
+		  else if (frameType >= Frame.CHOP_FRAME && frameType < Frame.SAME_FRAME_EXTENDED) {
+			  // chop_frame
+			  retv.nextFrameOffset = currentOffset;
+			  retv.localCountDelta = Frame.SAME_FRAME_EXTENDED - retv.frameType;
+			  retv.isValid = true;
 			  return retv;
 		  }
-		  retv.offsetDelta = readUnsignedShort(currentOffset);
-		  currentOffset += 2;
-		  // one stack item
-		  retv.stackCount = 1;
-		  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, 1);
-		  retv.isValid = retv.nextFrameOffset > 0;
-		  return retv;
+		  // Nothing to do for same_frame_extended
+		  // else if (frameType == Frame.SAME_FRAME_EXTENDED) { }
+		  else if (frameType < Frame.FULL_FRAME) {
+			  // append_frame
+			  retv.localCountDelta = retv.frameType - Frame.SAME_FRAME_EXTENDED;
+			  // local variables
+			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCountDelta);
+			  retv.isValid = retv.nextFrameOffset > 0;
+			  return retv;
+		  }
+		  else {
+			  // full_frame
+			  if (stackMapTableEndOffset - currentOffset < 2) {
+				  return retv;
+			  }
+			  retv.localCount = readUnsignedShort(currentOffset);
+			  currentOffset += 2;
+			  // local variables
+			  currentOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCount);
+			  if (currentOffset < 0) {
+				  return retv;
+			  }
+			  // number_of_stack_items
+			  if (stackMapTableEndOffset - currentOffset < 2) {
+				  return retv;
+			  }
+			  retv.stackCount = readUnsignedShort(currentOffset);
+			  currentOffset += 2;
+			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.stackCount);
+			  retv.isValid = retv.nextFrameOffset > 0;
+			  return retv;
+		  }		  
 	  }
 	  // unknown frame type
 	  return retv;
@@ -3685,7 +3677,7 @@ public class ClassReader {
     	// spiral
     	// skip frames with offsetDelta=0 and also return early if table end is reached
     	while (true) {
-        	StackFrameLookupResult res = lookupStackFrame(currentOffset, stackMapTableEndOffset);
+        	StackFrameLookupResult res = lookupStackFrame(currentOffset, stackMapTableEndOffset, maxBytecode);
     		System.out.println(String.format("isValid=%b, nextFrameOffset=%d, frameType=%d, stackMapTableEndOffset=%d",
 					res.isValid, res.nextFrameOffset, res.frameType, stackMapTableEndOffset));
         	if (res.isValid) {
