@@ -8,4 +8,3 @@ This project is based on projects asm and asm-tree which a part of java bytecode
 
  - make spider-cli build into a single jar with dependencies; actually, build creates a zip distribution that can be used to launch the whole thing
  - bsd-3
- - now that suggested class version and offsetDelta overflow are resolved ClassWriter and MethodWrites should be good to be replaced with their original counterparts

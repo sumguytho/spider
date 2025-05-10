@@ -119,6 +119,15 @@ public final class DeobfuscationContext {
 		return (suggestedMajorVersion & 0xffff) | (suggestedMinorVersion << 16);
 	}
 	
+	public int getSuggestedVersionMajor() { return suggestedMajorVersion; }
+	public int getSuggestedVersionMinor() { return suggestedMinorVersion; }
+	
+	public boolean suggestedVersionHigherThan(final int classVersionMajor, final int classVersionMinor) {
+		return suggestedMajorVersion > classVersionMajor ||
+				suggestedMajorVersion == classVersionMajor &&
+				suggestedMinorVersion > classVersionMinor;
+	}
+	
 	public void resetMaxLocals() {
 		maxLocals = 0;
 	}

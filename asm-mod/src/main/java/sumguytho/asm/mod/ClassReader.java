@@ -31,6 +31,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import sumguytho.asm.mod.logging.LoggingContext;
 import sumguytho.asm.mod.signature.SignatureReader;
 import sumguytho.asm.mod.signature.SignatureWriter;
 
@@ -452,8 +453,8 @@ public class ClassReader {
     context.parsingOptions = parsingOptions;
     context.charBuffer = new char[maxStringLength];
 
-    // spiral
-    System.out.print("\n\n");
+    LoggingContext loggingContext = new LoggingContext();
+    DeobfuscationContext deobfuscationContext = new DeobfuscationContext();
     
     // Read the access_flags, this_class, super_class, interface_count and interfaces fields.
     char[] charBuffer = context.charBuffer;
@@ -466,6 +467,11 @@ public class ClassReader {
     for (int i = 0; i < interfaces.length; ++i) {
       interfaces[i] = readClass(currentOffset, charBuffer);
       currentOffset += 2;
+    }
+    
+    // A little bit paranoic but readUTF8 may return null.
+    if (thisClass != null) {
+    	loggingContext.className = thisClass;
     }
 
     // Read the class attributes (the variables are ordered as in Section 4.7 of the JVMS).
@@ -506,9 +512,6 @@ public class ClassReader {
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
     
-    // spiral
-    DeobfuscationContext deobfuscationContext = new DeobfuscationContext();
-    
     int currentAttributeOffset = getFirstAttributeOffset();
     for (int i = readUnsignedShort(currentAttributeOffset - 2); i > 0; --i) {
       // Read the attribute_info's attribute_name and attribute_length fields.
@@ -516,7 +519,7 @@ public class ClassReader {
       int attributeLength = readInt(currentAttributeOffset + 2);
       currentAttributeOffset += 6;
       
-      // spiral
+      // Determine minimum minor and major version the attribute can appear in.
       deobfuscationContext.visitAttributeName(attributeName);
       
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
@@ -580,20 +583,28 @@ public class ClassReader {
     }
     
     if (signature != null && thisClass != null && signature.indexOf(thisClass) != -1) {
-    	System.out.println(String.format("Potential cyclic inheritance detected, thisClass=%s, signature=%s", thisClass, signature));
+    	// Class/interface signature contains name of class itself, it's possible that  
+    	// a class/interface inherits/implements itself.
     	SignatureWriter writer = new SignatureWriter();
-    	FixCyclicSignatureVisitor fix = new FixCyclicSignatureVisitor(thisClass, writer);
-    	new SignatureReader(signature).accept(fix);
+    	FixCyclicSignatureVisitor fixer = new FixCyclicSignatureVisitor(thisClass, writer);
+    	new SignatureReader(signature).accept(fixer);
     	final String newSignature = writer.toString();
-    	final String signatureChanged = signature.equals(newSignature) ? "no" : "yes";
-    	System.out.println(String.format("Translated cyclic signature, newSignature=%s, signatureChanged=%s", newSignature, signatureChanged));
+    	final boolean signatureChanged = !signature.equals(newSignature);
+    	final String signatureChangedStr = signatureChanged ? "yes" : "no";
+    	System.out.println(String.format("Translated cyclic signature, newSignature=%s, signatureChanged=%s", newSignature, signatureChangedStr));
+    	if (signatureChanged) {
+        	loggingContext.classSignature = signature;
+        	loggingContext.classSignatureNew = newSignature;
+    	}
     	signature = newSignature;
     }
     
     int classVersion = readInt(cpInfoOffsets[1] - 7);
 
-    // TODO: remove this call, it sets invalid version, hopefully nothing relies on this information
-    // prior to further parsing
+    // Following call sets invalid version, actual deduced class version will be set later. We only
+    // care how ClassNode reacts to this call and it doesn't rely on any of this information when
+    // visiting other class contents which is why calling this method again later to is fine.
+    //
     // Visit the class declaration. The minor_version and major_version fields start 6 bytes before
     // the first constant pool entry, which itself starts at cpInfoOffsets[1] - 1 (by definition).
     classVisitor.visit(
@@ -771,17 +782,19 @@ public class ClassReader {
     int methodsCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
     while (methodsCount-- > 0) {
-      currentOffset = readMethod(classVisitor, context, currentOffset, deobfuscationContext);
+      currentOffset = readMethod(classVisitor, context, currentOffset, deobfuscationContext, loggingContext);
     }
     
     final int classVersionMajor = classVersion & 0xffff;
     final int classVersionMinor = classVersion >> 16;
     
-    // spiral
-    if (deobfuscationContext.suggestedMajorVersion > classVersionMajor ||
-    	deobfuscationContext.suggestedMajorVersion == classVersionMajor &&
-    	deobfuscationContext.suggestedMinorVersion > classVersionMinor
-    ) {
+    // This can't be moved higher to replace the first call to visit because we can only tell
+    // real class version after visiting attributes of every method of a class.
+    if (deobfuscationContext.suggestedVersionHigherThan(classVersionMajor, classVersionMinor)) {
+    	loggingContext.classVersionMajor = classVersionMajor;
+    	loggingContext.classVersionMinor = classVersionMinor;
+    	loggingContext.classVersionMajorNew = deobfuscationContext.getSuggestedVersionMajor();
+    	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
     	System.out.println(String.format("Suggested a higher class version, classVersion=%x, suggestedClassVersion=%x",
     		classVersion, deobfuscationContext.suggestedVersionAsInt()));
     	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);    	
@@ -789,6 +802,8 @@ public class ClassReader {
 
     // Visit the end of the class.
     classVisitor.visitEnd();
+    
+    System.out.println(loggingContext.toString());
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1289,7 +1304,12 @@ public class ClassReader {
    * @return the offset of the first byte following the method_info structure.
    */
   private int readMethod(
-      final ClassVisitor classVisitor, final Context context, final int methodInfoOffset, final DeobfuscationContext deobfuscationContext) {
+      final ClassVisitor classVisitor,
+      final Context context,
+      final int methodInfoOffset,
+      final DeobfuscationContext deobfuscationContext,
+      final LoggingContext loggingContext
+  ) {
     char[] charBuffer = context.charBuffer;
 
     // Read the access_flags, name_index and descriptor_index fields.
@@ -1334,7 +1354,9 @@ public class ClassReader {
     int attributesCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
 
-	// spiral
+    loggingContext.methodName = context.currentMethodName;
+    loggingContext.methodSignature = context.currentMethodDescriptor;
+	
 	System.out.println(String.format("  visiting method {%s}, currentOffset=%d, attributesCount=%d, currentMethodDescriptor=%s, currentMethodAccessFlags=%x",
 		context.currentMethodName, currentOffset, attributesCount, context.currentMethodDescriptor, context.currentMethodAccessFlags));
 
@@ -1344,7 +1366,8 @@ public class ClassReader {
       int attributeLength = readInt(currentOffset + 2);
       currentOffset += 6;
       
-      // spiral
+      // Also determine minimum minor and major version the attribute can appear in
+      // for each attribute of a method.
       deobfuscationContext.visitAttributeName(attributeName);
       
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
@@ -1945,10 +1968,7 @@ public class ClassReader {
       // Read the attribute_info's attribute_name and attribute_length fields.
       String attributeName = readUTF8(currentOffset, charBuffer);
       int attributeLength = readInt(currentOffset + 2);
-      
-      // spiral
-      System.out.println(String.format("Reading attribute, offset=%d, length=%d, name=%s",
-    		  currentOffset, attributeLength, attributeName));
+
       deobfuscationContext.visitAttributeName(attributeName);
       
       currentOffset += 6;
