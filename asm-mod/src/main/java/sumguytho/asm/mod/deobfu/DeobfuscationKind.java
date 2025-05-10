@@ -47,7 +47,7 @@ public interface DeobfuscationKind {
 	 */
 	final String INSUFFICIENT_MAX_STACK = "insufficient_max_stack";
 	/*
-	 * Stack map frame ends beyond the StackMapTable. There is a related issue when
+	 * Stack map frame ends beyond the bytecode. There is a related issue when
 	 * less stack map frames are visited than there are in StackMapTable. I decided
 	 * not to report it since frames after an overextended one are always removed so
 	 * you will always get less actual stack map frames this way.
