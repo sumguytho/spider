@@ -2095,6 +2095,10 @@ public class ClassReader {
         	deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
         }
     	
+        // TODO: real traversal also looks at currentBytecodeOffset
+        // which results in some real frames not being traversed
+        // alternatively, it may mean that currentBytecodeOffset with
+        // next stack map frame is never reached
         while (stackMapFrameOffset != 0) {
         	if (stackMapFrameOffset < stackMapTableEndOffset) {
         		stackMapFrameOffset =
@@ -2199,7 +2203,7 @@ public class ClassReader {
         (context.parsingOptions & EXPAND_ASM_INSNS) == 0 ? Constants.WIDE_JUMP_OPCODE_DELTA : 0;
     
     currentOffset = bytecodeStartOffset;
-    while (currentOffset < bytecodeEndOffset) {
+    while (currentOffset < bytecodeEndOffset) {    	
       final int currentBytecodeOffset = currentOffset - bytecodeStartOffset;
 
       // Visit the label and the line number(s) for this bytecode offset, if any.
@@ -2829,6 +2833,7 @@ public class ClassReader {
    * @return a non null Label, which must be equal to labels[bytecodeOffset].
    */
   protected Label readLabel(final int bytecodeOffset, final Label[] labels) {
+	  System.out.println(String.format("Creating label at %d, max=%d", bytecodeOffset, labels.length));
     if (labels[bytecodeOffset] == null) {
       labels[bytecodeOffset] = new Label();
     }
@@ -3704,6 +3709,7 @@ public class ClassReader {
         		// try parsing frame from the next byte
         		++currentOffset;	
         	}
+        	// Didn't find a valid frame to be parsed.
     		if (currentOffset >= stackMapTableEndOffset) {
     			return 0;
     		}
@@ -3723,7 +3729,7 @@ public class ClassReader {
       System.out.println(String.format("Got same_frame, newOffset=%d, maxBytecode=%d, outOfReach=%s",
     		  newOffset, maxBytecode, newOffset > maxBytecode ? "yes" : "no"));
       if (newOffset > maxBytecode) {
-    	  // the same frame which ends beyond stack map table, just omit it
+    	  // the same frame which ends beyond stack map table, just omit it with everything after it
     	  return 0;
       }
       context.currentFrameType = Opcodes.F_SAME;
@@ -3764,32 +3770,21 @@ public class ClassReader {
         context.currentFrameLocalCount += context.currentFrameLocalCountDelta;
         context.currentFrameStackCount = 0;
       } else {
+        // full_frame
         final int numberOfLocals = readUnsignedShort(currentOffset);
-        
-        // spiral
-        System.out.println(String.format("Reading full stack frame, numberOfLocals=%d", numberOfLocals));
-
         currentOffset += 2;
         context.currentFrameType = Opcodes.F_FULL;
         context.currentFrameLocalCountDelta = numberOfLocals;
         context.currentFrameLocalCount = numberOfLocals;
         for (int local = 0; local < numberOfLocals; ++local) {
-        	// spiral
-        	System.out.println(String.format("    reading local verification info, offset=%d", currentOffset));
           currentOffset =
               readVerificationTypeInfo(
                   currentOffset, context.currentFrameLocalTypes, local, charBuffer, labels, dryRun);
         }
         final int numberOfStackItems = readUnsignedShort(currentOffset);
         currentOffset += 2;
-
-        // spiral
-        System.out.println(String.format("Reading full stack frame, numberOfStackItems=%d", numberOfStackItems));
-
         context.currentFrameStackCount = numberOfStackItems;
         for (int stack = 0; stack < numberOfStackItems; ++stack) {
-        	// spiral
-        	System.out.println(String.format("    reading stack verification info, offset=%d", currentOffset));
           currentOffset =
               readVerificationTypeInfo(
                   currentOffset, context.currentFrameStackTypes, stack, charBuffer, labels, dryRun);
@@ -3806,7 +3801,7 @@ public class ClassReader {
     String status = " (no error)";
     if (context.currentFrameStackCount > maxStack) { status += " (stack variables out of reach)"; }
     if (context.currentFrameLocalCount > maxLocals) { status += " (local variables out of reach)"; }
-    if (context.currentFrameOffset > maxBytecode) { status += " (labels out of reach)"; }
+    if (context.currentFrameOffset > maxBytecode) { status += " (labels out of reach)" + String.format(" frameType=%d", frameType); }
     if (frameType == Frame.FULL_FRAME && offsetDelta == 0) { status += " (full_frame with offsetDelta=0)"; }
     
     deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
