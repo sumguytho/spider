@@ -31,6 +31,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import sumguytho.asm.mod.deobfu.DeobfuscationKind;
 import sumguytho.asm.mod.logging.LoggingContext;
 import sumguytho.asm.mod.signature.SignatureReader;
 import sumguytho.asm.mod.signature.SignatureWriter;
@@ -590,11 +591,10 @@ public class ClassReader {
     	new SignatureReader(signature).accept(fixer);
     	final String newSignature = writer.toString();
     	final boolean signatureChanged = !signature.equals(newSignature);
-    	final String signatureChangedStr = signatureChanged ? "yes" : "no";
-    	System.out.println(String.format("Translated cyclic signature, newSignature=%s, signatureChanged=%s", newSignature, signatureChangedStr));
     	if (signatureChanged) {
         	loggingContext.classSignature = signature;
         	loggingContext.classSignatureNew = newSignature;
+    		System.out.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE, loggingContext.toString()));
     	}
     	signature = newSignature;
     }
@@ -795,15 +795,13 @@ public class ClassReader {
     	loggingContext.classVersionMinor = classVersionMinor;
     	loggingContext.classVersionMajorNew = deobfuscationContext.getSuggestedVersionMajor();
     	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
-    	System.out.println(String.format("Suggested a higher class version, classVersion=%x, suggestedClassVersion=%x",
-    		classVersion, deobfuscationContext.suggestedVersionAsInt()));
+    	System.out.println(String.format("%s %s",
+    		DeobfuscationKind.CLASS_VERSION_SUGGESTION, loggingContext.toString()));
     	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);    	
     }
 
     // Visit the end of the class.
     classVisitor.visitEnd();
-    
-    System.out.println(loggingContext.toString());
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1586,7 +1584,7 @@ public class ClassReader {
     // Visit the Code attribute.
     if (codeOffset != 0) {
       methodVisitor.visitCode();
-      readCode(methodVisitor, context, codeOffset, deobfuscationContext);
+      readCode(methodVisitor, context, codeOffset, deobfuscationContext, loggingContext);
     }
 
     // Visit the end of the method.
@@ -1607,7 +1605,12 @@ public class ClassReader {
    *     its attribute_name_index and attribute_length fields.
    */
   private void readCode(
-      final MethodVisitor methodVisitor, final Context context, final int codeOffset, final DeobfuscationContext deobfuscationContext) {
+      final MethodVisitor methodVisitor,
+      final Context context,
+      final int codeOffset,
+      final DeobfuscationContext deobfuscationContext,
+      final LoggingContext loggingContext
+  ) {
     int currentOffset = codeOffset;
 
     // Read the max_stack, max_locals and code_length fields.
@@ -2070,7 +2073,7 @@ public class ClassReader {
     // Initialize the context fields related to stack map frames, and generate the first
     // (implicit) stack map frame, if needed.
     final boolean expandFrames = (context.parsingOptions & EXPAND_FRAMES) != 0;
-    // figure out actual maxStack and maxLocals
+    // Dry run through StackMapTable to figure out actual maxStack and maxLocals.
     if (stackMapFrameOffset != 0) {
     	final int stackMapFrameOffsetSaved = stackMapFrameOffset;
     	
@@ -2101,37 +2104,31 @@ public class ClassReader {
         		stackMapFrameOffset = 0;
         	}
         }
-        String status = "Calculating used stack and locals";
-        status += String.format(" (maxLocalsDeclared=%d, maxLocals=%d)", maxLocalsDeclared, deobfuscationContext.maxLocals);
-        status += String.format(" (maxStackDeclared=%d, maxStack=%d)", maxStackDeclared, deobfuscationContext.maxStack);
-        if (status.length() > 0) {
-        	System.out.println(status);
-        }
         
     	maxLocals = deobfuscationContext.maxLocals;
     	maxStack = deobfuscationContext.maxStack;
+    	
+    	if (maxLocals != maxLocalsDeclared) {
+    		loggingContext.localsDeclared = maxLocalsDeclared;
+    		loggingContext.localsUsed = maxLocals;
+    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS, loggingContext.toString()));
+    	}
+    	if (maxStack != maxStackDeclared) {
+    		loggingContext.stackDeclared = maxStackDeclared;
+    		loggingContext.stackUsed = maxStack;
+    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK, loggingContext.toString()));
+    	}
         
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
     }
-    
-    String framesStatus = "ok";
-    if (deobfuscationContext.zeroOffsetDeltaStackMapFrames != 0) {
-    	if (deobfuscationContext.stackMapFrames == deobfuscationContext.zeroOffsetDeltaStackMapFrames) {
-    		framesStatus = "alldelta";
-    	}
-    	else {
-    		framesStatus = "mismatch";
-    	}
+
+    // All stack map frames have offsetDelta=0, ignore StackMapTable attribute.
+    if (deobfuscationContext.stackMapFrames == deobfuscationContext.zeroOffsetDeltaStackMapFrames && deobfuscationContext.stackMapFrames != 0) {
+    	System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_TABLE, loggingContext.toString()));
+    	stackMapFrameOffset = 0;
+    	stackMapTableEndOffset = 0;
+    	compressedFrames = true;
     }
-    System.out.println(String.format("Stack map frames(%s): all=%d, zeroOffsetDelta=%d", framesStatus, deobfuscationContext.stackMapFrames,
-    		deobfuscationContext.zeroOffsetDeltaStackMapFrames));
-    // spiral
-    // all stack map frames have offsetDelta=0, ignore stack map frames attribute
-//    if (deobfuscationContext.stackMapFrames == deobfuscationContext.zeroOffsetDeltaStackMapFrames && deobfuscationContext.stackMapFrames != 0) {
-//    	stackMapFrameOffset = 0;
-//    	stackMapTableEndOffset = 0;
-//    	compressedFrames = true;
-//    }
     
     if (stackMapFrameOffset != 0) {
       // The bytecode offset of the first explicit frame is not offset_delta + 1 but only
@@ -2200,15 +2197,6 @@ public class ClassReader {
     // instructions).
     final int wideJumpOpcodeDelta =
         (context.parsingOptions & EXPAND_ASM_INSNS) == 0 ? Constants.WIDE_JUMP_OPCODE_DELTA : 0;
-
-    // spiral
-    System.out.println(String.format("Reading bytecode, stackMapFrameOffset=%d, stackMapTableEndOffset=%d, stackMapTableEntriesCount=%d" +
-    	", maxStackReal=%d, maxLocalsReal=%d, codeLength=%d",
-    	stackMapFrameOffset, stackMapTableEndOffset, stackMapTableEntriesCount, maxStack, maxLocals, codeLength));
-
-    // spiral
-    // TODO: this is now calculated within deobfuscation context
-    int visitedStackMapFrames = 0;
     
     currentOffset = bytecodeStartOffset;
     while (currentOffset < bytecodeEndOffset) {
@@ -2227,9 +2215,6 @@ public class ClassReader {
         // If there is a stack map frame for this offset, make methodVisitor visit it, and read the
         // next stack map frame if there is one.
         if (context.currentFrameOffset != -1) {
-          System.out.println(String.format("Visiting frame MaxLocals=%d, LocalsLen=%d, MaxStack=%d, StackLen=%d",
-        		  context.currentFrameLocalCount, context.currentFrameLocalTypes.length,
-        		  context.currentFrameStackCount, context.currentFrameStackTypes.length));
           if (!compressedFrames || expandFrames) {        	  
             methodVisitor.visitFrame(
                 Opcodes.F_NEW,
@@ -2250,8 +2235,6 @@ public class ClassReader {
           insertFrame = false;
         }
         if (stackMapFrameOffset < stackMapTableEndOffset) {
-        	++visitedStackMapFrames;
-          System.out.println("Reading stack map frame at offset " + stackMapFrameOffset);
           stackMapFrameOffset =
               readStackMapFrame(stackMapFrameOffset, stackMapTableEndOffset, compressedFrames, expandFrames, context,
             		  maxStackDeclared, maxLocalsDeclared, codeLength, deobfuscationContext, false);
@@ -2722,11 +2705,6 @@ public class ClassReader {
                 invisibleTypeAnnotationOffsets, ++currentInvisibleTypeAnnotationIndex);
       }
     }
-    
-    // spiral
-    String status = visitedStackMapFrames != stackMapTableEntriesCount ? " (stack map frames mismatch)" : "";
-    System.out.println(String.format("Finished reading bytecode, visitedStackMapFrames=%d, stackMapTableEntriesCount=%d%s",
-  		  visitedStackMapFrames, stackMapTableEntriesCount, status));
     
     if (labels[codeLength] != null) {
       methodVisitor.visitLabel(labels[codeLength]);
