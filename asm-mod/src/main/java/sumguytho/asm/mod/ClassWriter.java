@@ -32,8 +32,6 @@ package sumguytho.asm.mod;
  * Virtual Machine Specification (JVMS). It can be used alone, to generate a Java class "from
  * scratch", or with one or more {@link ClassReader} and adapter {@link ClassVisitor} to generate a
  * modified class from one or more existing Java classes.
- * <br>
- * Modified by sumguytho.
  *
  * @see <a href="https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html">JVMS 4</a>
  * @author Eric Bruneton
@@ -467,8 +465,7 @@ public class ClassWriter extends ClassVisitor {
       final String descriptor,
       final String signature,
       final String[] exceptions) {
-    System.out.println("Visiting method " + name);
-	  MethodWriter methodWriter =
+    MethodWriter methodWriter =
         new MethodWriter(symbolTable, access, name, descriptor, signature, exceptions, compute);
     if (firstMethod == null) {
       firstMethod = methodWriter;

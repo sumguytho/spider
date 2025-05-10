@@ -40,7 +40,7 @@ import sumguytho.asm.mod.signature.SignatureWriter;
  * appropriate visit methods of a given {@link ClassVisitor} for each field, method and bytecode
  * instruction encountered.
  * <br>
- * Modified by sumguytho.
+ * Modified by sumguytho <sumguytho@gmail.com>.
  *
  * @see <a href="https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html">JVMS 4</a>
  * @author Eric Bruneton
@@ -2187,6 +2187,7 @@ public class ClassReader {
     	stackMapFrameOffset, stackMapTableEndOffset, stackMapTableEntriesCount, maxStack, maxLocals, codeLength));
 
     // spiral
+    // TODO: this is now calculated within deobfuscation context
     int visitedStackMapFrames = 0;
     
     currentOffset = bytecodeStartOffset;
@@ -2206,7 +2207,10 @@ public class ClassReader {
         // If there is a stack map frame for this offset, make methodVisitor visit it, and read the
         // next stack map frame if there is one.
         if (context.currentFrameOffset != -1) {
-          if (!compressedFrames || expandFrames) {
+          System.out.println(String.format("Visiting frame MaxLocals=%d, LocalsLen=%d, MaxStack=%d, StackLen=%d",
+        		  context.currentFrameLocalCount, context.currentFrameLocalTypes.length,
+        		  context.currentFrameStackCount, context.currentFrameStackTypes.length));
+          if (!compressedFrames || expandFrames) {        	  
             methodVisitor.visitFrame(
                 Opcodes.F_NEW,
                 context.currentFrameLocalCount,
@@ -3684,7 +3688,7 @@ public class ClassReader {
         	if (res.isValid) {
         		final int normalizedOffsetDelta = (res.offsetDelta + 1) & 0xffff;
         		if (normalizedOffsetDelta != 0) {
-        			break;        			
+        			break;
         		}
         		else {
         			System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",

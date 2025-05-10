@@ -43,8 +43,6 @@ import sumguytho.asm.mod.Opcodes;
  * <br>
  * (*) this is mandatory only for classes whose version is greater than or equal to {@link
  * Opcodes#V1_6}.
- * <br>
- * Modified by sumguytho.
  *
  * @author Eric Bruneton
  */
@@ -102,39 +100,17 @@ public class FrameNode extends AbstractInsnNode {
       final Object[] stack) {
     super(-1);
     this.type = type;
-
-    // spiral
-    String stackTruncated = "";
-    String localTruncated = "";
-    int numLocalMut = numLocal;
-    int numStackMut = numStack;
-    // attempted approach: drop labels that are 
-    // TODO: resize locals and stack every time there is a mismatch
-    // it's unclear how to populate missing entries
-    if (local != null && numLocalMut > local.length) {
-    	numLocalMut = local.length;
-    	localTruncated = "(truncated)";
-    }
-    if (stack != null && numStackMut > stack.length) {
-    	numStackMut = stack.length;
-    	stackTruncated = "(truncated)";
-    }
-    String localLenReal = local != null ? Integer.toString(numLocalMut) + localTruncated : "null";
-    String stackLenReal = local != null ? Integer.toString(numStackMut) + stackTruncated : "null";
-    System.out.println(String.format("Creating new frame, type=%d, numLocal=%d, numLocalReal=%s, numStack=%d, numStackReal=%s",
-    	type, numLocalMut, localLenReal, numStackMut, stackLenReal));
-
     switch (type) {
       case Opcodes.F_NEW:
       case Opcodes.F_FULL:
-        this.local = Util.asArrayList(numLocalMut, local);
-        this.stack = Util.asArrayList(numStackMut, stack);
+        this.local = Util.asArrayList(numLocal, local);
+        this.stack = Util.asArrayList(numStack, stack);
         break;
       case Opcodes.F_APPEND:
-        this.local = Util.asArrayList(numLocalMut, local);
+        this.local = Util.asArrayList(numLocal, local);
         break;
       case Opcodes.F_CHOP:
-        this.local = Util.asArrayList(numLocalMut);
+        this.local = Util.asArrayList(numLocal);
         break;
       case Opcodes.F_SAME:
         break;

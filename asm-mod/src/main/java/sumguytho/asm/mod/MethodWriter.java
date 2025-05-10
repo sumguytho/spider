@@ -30,8 +30,6 @@ package sumguytho.asm.mod;
 /**
  * A {@link MethodVisitor} that generates a corresponding 'method_info' structure, as defined in the
  * Java Virtual Machine Specification (JVMS).
- * <br>
- * Modified by sumguytho.
  *
  * @see <a href="https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.6">JVMS
  *     4.6</a>
@@ -778,23 +776,15 @@ final class MethodWriter extends MethodVisitor {
       }
       visitFrameEnd();
     } else {
-      // spiral
-      // why should they?
-      // if (symbolTable.getMajorVersion() < Opcodes.V1_6) {
-        // throw new IllegalArgumentException("Class versions V1_5 or less must use F_NEW frames.");
-      // }
-      // UPDATE from the future, I think I know now, it's because StackMapTable was added in java 6 (50.0)
-      // although the pcode uses those in spite of its version being 49.0
-      // TODO: perhaps update whaever symbolTable.getMajorVersion() returns instead of hacking out the check?
+      if (symbolTable.getMajorVersion() < Opcodes.V1_6) {
+        throw new IllegalArgumentException("Class versions V1_5 or less must use F_NEW frames.");
+      }
       int offsetDelta;
       if (stackMapTableEntries == null) {
-    	System.out.println("Creating stack map table");
         stackMapTableEntries = new ByteVector();
         offsetDelta = code.length;
       } else {
-        // offsetDelta = code.length - previousFrameOffset - 1;
-    	  // spiral
-    	  offsetDelta = (code.length - previousFrameOffset - 1) & 0xffff;
+        offsetDelta = code.length - previousFrameOffset - 1;
         if (offsetDelta < 0) {
           if (type == Opcodes.F_SAME) {
             return;
@@ -806,7 +796,6 @@ final class MethodWriter extends MethodVisitor {
 
       switch (type) {
         case Opcodes.F_FULL:
-          System.out.println("Putting frame type F_FULL");
           currentLocals = numLocal;
           stackMapTableEntries.putByte(Frame.FULL_FRAME).putShort(offsetDelta).putShort(numLocal);
           for (int i = 0; i < numLocal; ++i) {
@@ -818,7 +807,6 @@ final class MethodWriter extends MethodVisitor {
           }
           break;
         case Opcodes.F_APPEND:
-          System.out.println("Putting frame type F_APPEND");
           currentLocals += numLocal;
           stackMapTableEntries.putByte(Frame.SAME_FRAME_EXTENDED + numLocal).putShort(offsetDelta);
           for (int i = 0; i < numLocal; ++i) {
@@ -826,12 +814,10 @@ final class MethodWriter extends MethodVisitor {
           }
           break;
         case Opcodes.F_CHOP:
-          System.out.println("Putting frame type F_CHOP");
           currentLocals -= numLocal;
           stackMapTableEntries.putByte(Frame.SAME_FRAME_EXTENDED - numLocal).putShort(offsetDelta);
           break;
         case Opcodes.F_SAME:
-          System.out.println("Putting frame type F_SAME");
           if (offsetDelta < 64) {
             stackMapTableEntries.putByte(offsetDelta);
           } else {
@@ -839,7 +825,6 @@ final class MethodWriter extends MethodVisitor {
           }
           break;
         case Opcodes.F_SAME1:
-          System.out.println("Putting frame type F_SAME1");
           if (offsetDelta < 64) {
             stackMapTableEntries.putByte(Frame.SAME_LOCALS_1_STACK_ITEM_FRAME + offsetDelta);
           } else {

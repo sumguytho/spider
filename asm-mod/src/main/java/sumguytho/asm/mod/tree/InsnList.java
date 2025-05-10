@@ -34,8 +34,6 @@ import sumguytho.asm.mod.MethodVisitor;
 /**
  * A doubly linked list of {@link AbstractInsnNode} objects. <i>This implementation is not thread
  * safe</i>.
- * <br>
- * Modified by sumguytho.
  */
 public class InsnList implements Iterable<AbstractInsnNode> {
 
@@ -143,11 +141,6 @@ public class InsnList implements Iterable<AbstractInsnNode> {
   public void accept(final MethodVisitor methodVisitor) {
     AbstractInsnNode currentInsn = firstInsn;
     while (currentInsn != null) {
-    	// spiral
-    	if (currentInsn.getType() == AbstractInsnNode.FRAME) {
-    		FrameNode frame = (FrameNode)currentInsn;
-        	System.out.println(String.format("    visiting frame, type=%d", frame.type));
-    	}
       currentInsn.accept(methodVisitor);
       currentInsn = currentInsn.nextInsn;
     }
