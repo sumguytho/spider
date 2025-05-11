@@ -1,4 +1,4 @@
-package sumguytho.asm.mod;
+package sumguytho.asm.mod.deobfu;
 
 /**
  * Contains info about stack frame at a certain offset into StackMapTable.
@@ -6,21 +6,31 @@ package sumguytho.asm.mod;
  * @author sumguytho <sumguytho@gmail.com>
  */
 public class StackFrameLookupResult {
-	/** 
-	 * Whether further lookups into StackMapTable will bear results.
-	 * Fields below only make sense when this is set to true.
-	 */
-	boolean reachableFramesLeft;
-	/** 
-	 * Whether there is a parsable stack map frame at provided position.
-	 * Fields below only make sense when this is set to true.
-	 */
-	boolean isValid;
-	int nextFrameOffset;
-	int frameType;
+	public Verdict verdict = Verdict.VALID;
+	// Offset of next stack map frame in a StackMapTable.
+	public int nextOffset;
+	public int frameType;
 	/* offsetDelta is returned as raw value as it appears in a frame. */
-	int offsetDelta;
-	int localCount;
-	int localCountDelta;
-	int stackCount;
+	public int offsetDelta;
+	public int localCount;
+	public int localCountDelta;
+	public int stackCount;
+	
+	public void updateResult(VerificationTypeInfoValidationResult res) {
+		if (res.result == ParseResult.VALID) {
+			nextOffset = res.nextOffset;
+			verdict = Verdict.VALID;
+		}
+		else {
+			verdict = Verdict.PADDING;
+		}
+	}
+	
+	public enum Verdict {
+		VALID,
+		FAKE,
+		OVEREXTENDED,
+		PADDING,
+		NO_VALID_FRAMES_LEFT;
+	}
 }

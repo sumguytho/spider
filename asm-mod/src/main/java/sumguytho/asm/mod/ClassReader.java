@@ -32,7 +32,13 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import sumguytho.asm.mod.deobfu.DeobfuscationKind;
+import sumguytho.asm.mod.deobfu.DeobfuscationContext;
+import sumguytho.asm.mod.deobfu.FixCyclicSignatureVisitor;
+import sumguytho.asm.mod.deobfu.ParseResult;
+import sumguytho.asm.mod.deobfu.StackFrameLookupResult;
+import sumguytho.asm.mod.deobfu.VerificationTypeInfoValidationResult;
 import sumguytho.asm.mod.logging.LoggingContext;
+
 import sumguytho.asm.mod.signature.SignatureReader;
 import sumguytho.asm.mod.signature.SignatureWriter;
 
@@ -594,7 +600,7 @@ public class ClassReader {
     	if (signatureChanged) {
         	loggingContext.classSignature = signature;
         	loggingContext.classSignatureNew = newSignature;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE, loggingContext.toString()));
+    		System.out.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE.name(), loggingContext.toString()));
     	}
     	signature = newSignature;
     }
@@ -796,7 +802,7 @@ public class ClassReader {
     	loggingContext.classVersionMajorNew = deobfuscationContext.getSuggestedVersionMajor();
     	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
     	System.out.println(String.format("%s %s",
-    		DeobfuscationKind.CLASS_VERSION_SUGGESTION, loggingContext.toString()));
+    		DeobfuscationKind.INCORRECT_CLASS_VERSION.name(), loggingContext.toString()));
     	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);    	
     }
 
@@ -2115,12 +2121,12 @@ public class ClassReader {
     	if (maxLocals != maxLocalsDeclared) {
     		loggingContext.localsDeclared = maxLocalsDeclared;
     		loggingContext.localsUsed = maxLocals;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS, loggingContext.toString()));
+    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS.name(), loggingContext.toString()));
     	}
     	if (maxStack != maxStackDeclared) {
     		loggingContext.stackDeclared = maxStackDeclared;
     		loggingContext.stackUsed = maxStack;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK, loggingContext.toString()));
+    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK.name(), loggingContext.toString()));
     	}
         
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
@@ -2128,7 +2134,7 @@ public class ClassReader {
 
     // All stack map frames have offsetDelta=0, ignore StackMapTable attribute.
     if (deobfuscationContext.stackMapFrames == deobfuscationContext.zeroOffsetDeltaStackMapFrames && deobfuscationContext.stackMapFrames != 0) {
-    	System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_TABLE, loggingContext.toString()));
+    	System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_TABLE.name(), loggingContext.toString()));
     	stackMapFrameOffset = 0;
     	stackMapTableEndOffset = 0;
     	compressedFrames = true;
@@ -2833,7 +2839,6 @@ public class ClassReader {
    * @return a non null Label, which must be equal to labels[bytecodeOffset].
    */
   protected Label readLabel(final int bytecodeOffset, final Label[] labels) {
-	  System.out.println(String.format("Creating label at %d, max=%d", bytecodeOffset, labels.length));
     if (labels[bytecodeOffset] == null) {
       labels[bytecodeOffset] = new Label();
     }
@@ -3486,12 +3491,14 @@ public class ClassReader {
    * @return offset of the next JVMS 'verification_type_info' structure, bounded by {@link verificationTypeInfoEndOffset},
    * 	or -1 in case a structure is invalid or breaches specified offset.
    */
-  private int validateVerificationTypeInfo(
+  private void validateVerificationTypeInfo(
 		  final int verificationTypeInfoOffset,
-	      final int verificationTypeInfoEndOffset
+	      final int verificationTypeInfoEndOffset,
+	      final VerificationTypeInfoValidationResult result
   ) {
 	if (verificationTypeInfoEndOffset - verificationTypeInfoOffset < 1) {
-		return -1;
+		result.result = ParseResult.OUT_OF_BOUNDS;
+		return;
 	}
     int nextVerificationTypeInfoOffset = verificationTypeInfoOffset;
     int tag = classFileBuffer[nextVerificationTypeInfoOffset++] & 0xFF;
@@ -3509,12 +3516,13 @@ public class ClassReader {
     	  nextVerificationTypeInfoOffset += 2;
         break;
       default:
-        return -1;
+    	  result.result = ParseResult.INVALID;
     }
     if (nextVerificationTypeInfoOffset > verificationTypeInfoEndOffset) {
-    	return -1;
+    	result.result = ParseResult.OUT_OF_BOUNDS;
     }
-    return nextVerificationTypeInfoOffset;
+    result.typesVerified++;
+    result.nextOffset = nextVerificationTypeInfoOffset;
   }
 
   /**
@@ -3528,19 +3536,21 @@ public class ClassReader {
    * @return the offset that points to location after the array of 'verification_type_info' structures or -1
    * 	if {@link entriesToValidate} structures couldn't be read.
    */
-  private int validateMultipleVerificationTypeInfo(
+  private VerificationTypeInfoValidationResult validateMultipleVerificationTypeInfo(
       final int verificationTypeInfoOffset,
       final int verificationTypeInfoEndOffset,
       final int entriesToValidate
   ) {
-	int verificationTypeInfoRealEndOffset = verificationTypeInfoOffset;
-	for (int i = 0; i < entriesToValidate; ++i) {
-		verificationTypeInfoRealEndOffset = validateVerificationTypeInfo(verificationTypeInfoRealEndOffset, verificationTypeInfoEndOffset);
-		if (verificationTypeInfoRealEndOffset < 0) {
-			break;
-		}
+	VerificationTypeInfoValidationResult retv = new VerificationTypeInfoValidationResult();
+	retv.nextOffset = verificationTypeInfoOffset;
+	for (int i = 0; i < entriesToValidate && retv.result == ParseResult.VALID; ++i) {
+		validateVerificationTypeInfo(
+				retv.nextOffset,
+				verificationTypeInfoEndOffset,
+				retv
+		);
 	}
-	return verificationTypeInfoRealEndOffset;
+	return retv;
   }
 
   /**
@@ -3550,7 +3560,17 @@ public class ClassReader {
    * 
    * This function also checks whether a frame is going to be used based on its position in bytecode.
    * 
-   * TODO: add common code that adds 2 to offsetDelta of all the 3 byte frames (same, chop, etc.).
+   * My logic behind stack map frame deobfuscation classification:
+   *  - A frame is fully contained within StackMapTable but offsetDelta points beyond the bytecode:
+   *  - - If it's a kind of same frame it can be omitted entirely, all following frames can be
+   *      omitted as well. It's OVEREXTENDED_STACK_MAP_FRAME.
+   *  - - If it's some other kind of frame its offsetDelta needs to be corrected and the frame
+   *      itself should be traversed. Following frames will be omitted. It's OVEREXTENDED_STACK_MAP_FRAME.
+   *  - A frame breaches StackMapTable:
+   *  - - This isn't a valid frame. It's STACK_MAP_FRAME_PADDING.
+   *  - A frame is correct but its offsetDelta is 0xffff:
+   *  - - The frame is invalid and shouldn't be traversed. There may be valid frames left in the table.
+   *      It's FAKE_STACK_MAP_FRAME.
    * 
    * @param stackMapFrameOffset the offset of stack_map_frame in {@link #classFileBuffer}
    * @param stackMapTableEndOffset the offset of the next attribute after StackMapTable in
@@ -3560,52 +3580,54 @@ public class ClassReader {
   private StackFrameLookupResult lookupStackFrame(
 	  final int stackMapFrameOffset,
 	  final int stackMapTableEndOffset,
+	  final int currentFrameOffset,
 	  final int maxBytecode
   ) {
 	  // TODO: this is probably bad to constantly allocate a lot of small objects
 	  StackFrameLookupResult retv = new StackFrameLookupResult();
+	  // If we can't read even frame type this means we've reached the end of the table.
 	  if (stackMapTableEndOffset - stackMapFrameOffset < 1) {
+		  retv.verdict = StackFrameLookupResult.Verdict.NO_VALID_FRAMES_LEFT;
 		  return retv;
 	  }
-	  int currentOffset = stackMapFrameOffset;
-	  final int frameType = classFileBuffer[currentOffset++] & 0xff;
+	  retv.nextOffset = stackMapFrameOffset;
+	  final int frameType = classFileBuffer[retv.nextOffset++] & 0xff;
 	  retv.frameType = frameType;
+	  // Now that we have frame type any insufficient bytes would mean
+	  // a frame is invalid.
 	  if (frameType < Frame.SAME_LOCALS_1_STACK_ITEM_FRAME) {
 		  // same_frame
 		  retv.offsetDelta = frameType;
-		  retv.isValid = true;
-		  retv.nextFrameOffset = currentOffset;
-		  return retv;
 	  }
 	  else if (frameType < Frame.RESERVED) {
 		  // same_locals_1_stack_item_frame
 		  retv.stackCount = 1;
-		  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, 1);
-		  retv.isValid = retv.nextFrameOffset > 0;
-		  return retv;
+		  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, 1));
+		  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
+			  return retv;
+		  }
 	  }
 	  else if (frameType >= Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
 		  // common code for full_frame, append_frame, chop_frame, same_frame_extended and same_locals_1_extended
-		  if (stackMapTableEndOffset - currentOffset < 2) {
+		  if (stackMapTableEndOffset - retv.nextOffset < 2) {
+			  retv.verdict = StackFrameLookupResult.Verdict.PADDING;
 			  return retv;
 		  }
-		  retv.offsetDelta = readUnsignedShort(currentOffset);
-		  currentOffset += 2;
+		  retv.offsetDelta = readUnsignedShort(retv.nextOffset);
+		  retv.nextOffset += 2;
 		  
 		  if (frameType == Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
 			  // same_locals_1_extended
 			  // one stack item
 			  retv.stackCount = 1;
-			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, 1);
-			  retv.isValid = retv.nextFrameOffset > 0;
-			  return retv;
+			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, 1));
+			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
+				  return retv;				  
+			  }
 		  }
 		  else if (frameType >= Frame.CHOP_FRAME && frameType < Frame.SAME_FRAME_EXTENDED) {
 			  // chop_frame
-			  retv.nextFrameOffset = currentOffset;
 			  retv.localCountDelta = Frame.SAME_FRAME_EXTENDED - retv.frameType;
-			  retv.isValid = true;
-			  return retv;
 		  }
 		  // Nothing to do for same_frame_extended
 		  // else if (frameType == Frame.SAME_FRAME_EXTENDED) { }
@@ -3613,34 +3635,54 @@ public class ClassReader {
 			  // append_frame
 			  retv.localCountDelta = retv.frameType - Frame.SAME_FRAME_EXTENDED;
 			  // local variables
-			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCountDelta);
-			  retv.isValid = retv.nextFrameOffset > 0;
-			  return retv;
+			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, retv.localCountDelta));
+			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
+				  return retv;				  
+			  }
 		  }
 		  else {
 			  // full_frame
-			  if (stackMapTableEndOffset - currentOffset < 2) {
+			  if (stackMapTableEndOffset - retv.nextOffset < 2) {
+				  retv.verdict = StackFrameLookupResult.Verdict.PADDING;
 				  return retv;
 			  }
-			  retv.localCount = readUnsignedShort(currentOffset);
-			  currentOffset += 2;
+			  retv.localCount = readUnsignedShort(retv.nextOffset);
+			  retv.nextOffset += 2;
 			  // local variables
-			  currentOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.localCount);
-			  if (currentOffset < 0) {
+			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, retv.localCount));
+			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
 				  return retv;
 			  }
 			  // number_of_stack_items
-			  if (stackMapTableEndOffset - currentOffset < 2) {
+			  if (stackMapTableEndOffset - retv.nextOffset < 2) {
+				  retv.verdict = StackFrameLookupResult.Verdict.PADDING;
 				  return retv;
 			  }
-			  retv.stackCount = readUnsignedShort(currentOffset);
-			  currentOffset += 2;
-			  retv.nextFrameOffset = validateMultipleVerificationTypeInfo(currentOffset, stackMapTableEndOffset, retv.stackCount);
-			  retv.isValid = retv.nextFrameOffset > 0;
-			  return retv;
+			  retv.stackCount = readUnsignedShort(retv.nextOffset);
+			  retv.nextOffset += 2;
+			  // local items
+			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, retv.stackCount));
+			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
+				  return retv;
+			  }
 		  }		  
 	  }
-	  // unknown frame type
+	  else {
+		  // Unknown frame type
+		  retv.verdict = StackFrameLookupResult.Verdict.PADDING;
+		  return retv;
+	  }
+	  // The frame is valid but it may still be a fake frame (hi, nvidia) or point outside bytecode.
+	  // Bear in mind one important detail: even if this code invalidates a frame its
+	  // nextOffset is still correct in case it was valid before.
+	  final int normalizedOffsetDelta = (retv.offsetDelta + 1) & 0xffff;
+	  if (normalizedOffsetDelta == 0) {
+		  retv.verdict = StackFrameLookupResult.Verdict.FAKE;
+	  }
+	  else if (currentFrameOffset + normalizedOffsetDelta > maxBytecode) {
+		  retv.verdict = StackFrameLookupResult.Verdict.OVEREXTENDED;
+	  }
+	  // Still valid, frame?
 	  return retv;
   }
   
@@ -3677,34 +3719,37 @@ public class ClassReader {
     	// spiral
     	// skip frames with offsetDelta=0 and also return early if table end is reached
     	while (true) {
-        	StackFrameLookupResult res = lookupStackFrame(currentOffset, stackMapTableEndOffset, maxBytecode);
-    		System.out.println(String.format("isValid=%b, nextFrameOffset=%d, frameType=%d, stackMapTableEndOffset=%d",
-					res.isValid, res.nextFrameOffset, res.frameType, stackMapTableEndOffset));
-        	if (res.isValid) {
-        		final int normalizedOffsetDelta = (res.offsetDelta + 1) & 0xffff;
-        		if (normalizedOffsetDelta != 0) {
-        			break;
-        		}
-        		else {
-        			System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",
-        					currentOffset, res.nextFrameOffset));
-        			if (currentOffset == res.nextFrameOffset) {
-        				throw new IllegalStateException("A frame with offsetDelta=0 has been skipped but currentOffset didn't advance.");
-        			}
-        			currentOffset = res.nextFrameOffset;
-        			deobfuscationContext.stackMapFrames++;
-        			deobfuscationContext.zeroOffsetDeltaStackMapFrames++;
-        		}
+        	StackFrameLookupResult res = lookupStackFrame(currentOffset, stackMapTableEndOffset, context.currentFrameOffset, maxBytecode);
+        	if (res.verdict == StackFrameLookupResult.Verdict.VALID) {
+        		break;
         	}
-        	else {
-        		System.out.println(String.format("Couldn't parse stack frame at %d, retrying at %d", currentOffset, currentOffset+1));
-        		// try parsing frame from the next byte
-        		++currentOffset;	
+        	else if (res.verdict == StackFrameLookupResult.Verdict.FAKE) {
+        		System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",
+    					currentOffset, res.nextOffset));  
+        		currentOffset = res.nextOffset;
+    			deobfuscationContext.stackMapFrames++;
+    			deobfuscationContext.zeroOffsetDeltaStackMapFrames++;
         	}
-        	// Didn't find a valid frame to be parsed.
-    		if (currentOffset >= stackMapTableEndOffset) {
-    			return 0;
-    		}
+        	else if (res.verdict == StackFrameLookupResult.Verdict.OVEREXTENDED) {
+        		System.out.println(String.format("Skipping overextended frame at %d, trying next frame at %d",
+    					currentOffset, res.nextOffset));  
+        		currentOffset = res.nextOffset;
+    			deobfuscationContext.stackMapFrames++;
+        	}
+        	else if (res.verdict == StackFrameLookupResult.Verdict.PADDING) {
+        		// Not incrementing deobfuscationContext.stackMapFrames because this wasn't
+        		// a stack map frame presumably.
+        		System.out.println(String.format("Couldn't parse stack frame type=%d at %d, retrying at %d",
+        				res.frameType, currentOffset, currentOffset+1));
+        		currentOffset++;
+        		return 0; // mostly gibberish
+        	}
+    		System.out.println(String.format("isValid=%b, nextOffset=%d, frameType=%d, stackMapTableEndOffset=%d",
+					res.verdict == StackFrameLookupResult.Verdict.VALID, currentOffset, res.frameType, stackMapTableEndOffset));
+        	if (res.verdict == StackFrameLookupResult.Verdict.NO_VALID_FRAMES_LEFT) {
+        		// Didn't find a valid frame to be parsed.
+        		return 0;
+        	}
     	}
         
       // Read the frame_type field.
@@ -3717,13 +3762,6 @@ public class ClassReader {
     context.currentFrameLocalCountDelta = 0;
     if (frameType < Frame.SAME_LOCALS_1_STACK_ITEM_FRAME) {
       offsetDelta = frameType;
-      final int newOffset = (context.currentFrameOffset + offsetDelta + 1) & 0xffff;
-      System.out.println(String.format("Got same_frame, newOffset=%d, maxBytecode=%d, outOfReach=%s",
-    		  newOffset, maxBytecode, newOffset > maxBytecode ? "yes" : "no"));
-      if (newOffset > maxBytecode) {
-    	  // the same frame which ends beyond stack map table, just omit it with everything after it
-    	  return 0;
-      }
       context.currentFrameType = Opcodes.F_SAME;
       context.currentFrameStackCount = 0;
     } else if (frameType < Frame.RESERVED) {

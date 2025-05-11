@@ -1,8 +1,10 @@
-package sumguytho.asm.mod;
+package sumguytho.asm.mod.deobfu;
 
 /**
  * A class used to store corrections that must be applied to a class
  * as it's parsed.
+ * 
+ * @author sumguytho <sumguytho@gmail.com>
  */
 public final class DeobfuscationContext {
 	/**
@@ -150,5 +152,44 @@ public final class DeobfuscationContext {
 	
 	public void setMaxLabelsMonotonic(final int maxLabels) {
 		this.maxLabels = maxLabels > this.maxLabels ? maxLabels : this.maxLabels; 
+	}
+	
+	/**
+	 * Copy pasted from org.objectweb.asm.Constants so that I don't have to modify the source.
+	 * 
+	 * Original author: Eric Bruneton
+	 */
+	public class Constants {
+		  public static final String CONSTANT_VALUE = "ConstantValue";
+		  public static final String CODE = "Code";
+		  public static final String STACK_MAP_TABLE = "StackMapTable";
+		  public static final String EXCEPTIONS = "Exceptions";
+		  public static final String INNER_CLASSES = "InnerClasses";
+		  public static final String ENCLOSING_METHOD = "EnclosingMethod";
+		  public static final String SYNTHETIC = "Synthetic";
+		  public static final String SIGNATURE = "Signature";
+		  public static final String SOURCE_FILE = "SourceFile";
+		  public static final String SOURCE_DEBUG_EXTENSION = "SourceDebugExtension";
+		  public static final String LINE_NUMBER_TABLE = "LineNumberTable";
+		  public static final String LOCAL_VARIABLE_TABLE = "LocalVariableTable";
+		  public static final String LOCAL_VARIABLE_TYPE_TABLE = "LocalVariableTypeTable";
+		  public static final String DEPRECATED = "Deprecated";
+		  public static final String RUNTIME_VISIBLE_ANNOTATIONS = "RuntimeVisibleAnnotations";
+		  public static final String RUNTIME_INVISIBLE_ANNOTATIONS = "RuntimeInvisibleAnnotations";
+		  public static final String RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS = "RuntimeVisibleParameterAnnotations";
+		  public static final String RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS =
+		      "RuntimeInvisibleParameterAnnotations";
+		  public static final String RUNTIME_VISIBLE_TYPE_ANNOTATIONS = "RuntimeVisibleTypeAnnotations";
+		  public static final String RUNTIME_INVISIBLE_TYPE_ANNOTATIONS = "RuntimeInvisibleTypeAnnotations";
+		  public static final String ANNOTATION_DEFAULT = "AnnotationDefault";
+		  public static final String BOOTSTRAP_METHODS = "BootstrapMethods";
+		  public static final String METHOD_PARAMETERS = "MethodParameters";
+		  public static final String MODULE = "Module";
+		  public static final String MODULE_PACKAGES = "ModulePackages";
+		  public static final String MODULE_MAIN_CLASS = "ModuleMainClass";
+		  public static final String NEST_HOST = "NestHost";
+		  public static final String NEST_MEMBERS = "NestMembers";
+		  public static final String PERMITTED_SUBCLASSES = "PermittedSubclasses";
+		  public static final String RECORD = "Record";
 	}
 }

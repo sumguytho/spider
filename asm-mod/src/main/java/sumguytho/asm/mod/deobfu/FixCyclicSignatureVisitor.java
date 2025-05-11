@@ -1,6 +1,8 @@
-package sumguytho.asm.mod;
+package sumguytho.asm.mod.deobfu;
 
 import sumguytho.asm.mod.signature.SignatureVisitor;
+
+import sumguytho.asm.mod.Opcodes;
 
 /**
  * Removes cyclic references from signatures.
