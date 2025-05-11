@@ -57,12 +57,16 @@ public class Spider {
 				    if (!jarEntryIn.isDirectory()) {
 			        	byte[] classBytes = entryStreamIn.readAllBytes();
 					    if (isClassFilename(filepath)) {
+					    	System.out.println("Deobfuscating " + filepath);
 					    	classBytes = transform(classBytes);
 					    }
 					    else {
-						    System.out.println("Skipping deobfuscation for" + filepath);
+						    System.out.println("Skipping file " + filepath);
 					    }
 			        	destJarFile.write(classBytes);
+				    }
+				    else {
+				    	System.out.println("Skipping directory " + filepath);
 				    }
 		        }
 		        finally {

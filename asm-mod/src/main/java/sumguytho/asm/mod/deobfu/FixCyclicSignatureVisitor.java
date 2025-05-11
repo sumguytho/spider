@@ -32,7 +32,6 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public void visitClassType(final String name) {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitClassType name=%s", name));
 		boolean visitingTopLevelIdentifier = visitingSuperclass || visitingSuperinterface;
 		if (visitingTopLevelIdentifier) {
 			if (superclassName.equals(name)) {
@@ -64,7 +63,6 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public void visitInnerClassType(final String name) {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitInnerClassType name=%s", name));
 		sv.visitInnerClassType(name);
 	}
 
@@ -91,7 +89,6 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public SignatureVisitor visitClassBound() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitClassBound"));
 		sv.visitClassBound();
 		return this;
 	}
@@ -99,7 +96,6 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public SignatureVisitor visitInterface() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitInterface"));
 		visitingSuperinterface = true;
 		sv = sinksv;
 		return this;
@@ -107,14 +103,12 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public SignatureVisitor visitInterfaceBound() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitInterfaceBound"));
 		sv.visitInterfaceBound();
 		return this;
 	}
 
 	@Override
 	public SignatureVisitor visitParameterType() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitParameterType"));
 		sv.visitParameterType();
 		return this;
 	}
@@ -124,7 +118,6 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 	// sv.visitSuperclass call may potentitally introduce extra context through closure.
 	@Override
 	public SignatureVisitor visitSuperclass() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitSuperclass"));
 		visitingSuperclass = true;
 		// don't delegate parser call anywhere until we are sure we need to
 		sv = sinksv;
@@ -133,20 +126,17 @@ public class FixCyclicSignatureVisitor extends SignatureVisitor {
 
 	@Override
 	public void visitTypeArgument() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitTypeArgument"));
 		sv.visitTypeArgument();
 	}
 
 	@Override
 	public SignatureVisitor visitTypeArgument(final char wildcard) {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitTypeArgument, wildcard=%c", wildcard));
 		sv.visitTypeArgument(wildcard);
 		return this;
 	}
 
 	@Override
 	public void visitEnd() {
-		System.out.println(String.format("FixCyclicSignatureVisitor.visitEnd"));
 		sv.visitEnd();
 	}
 }

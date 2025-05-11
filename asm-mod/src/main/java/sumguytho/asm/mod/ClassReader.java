@@ -165,6 +165,10 @@ public class ClassReader {
    * the class.
    */
   private final int maxStringLength;
+  /**
+   * Whether to skip stack map frames after an invalid one was encountered. Set to true by default.
+   */
+  private boolean haltOnInvalidFrames = true;
 
   // -----------------------------------------------------------------------------------------------
   // Constructors
@@ -1360,9 +1364,6 @@ public class ClassReader {
 
     loggingContext.methodName = context.currentMethodName;
     loggingContext.methodSignature = context.currentMethodDescriptor;
-	
-	System.out.println(String.format("  visiting method {%s}, currentOffset=%d, attributesCount=%d, currentMethodDescriptor=%s, currentMethodAccessFlags=%x",
-		context.currentMethodName, currentOffset, attributesCount, context.currentMethodDescriptor, context.currentMethodAccessFlags));
 
     while (attributesCount-- > 0) {
       // Read the attribute_info's attribute_name and attribute_length fields.
@@ -1634,7 +1635,6 @@ public class ClassReader {
     final int bytecodeStartOffset = currentOffset;
     final int bytecodeEndOffset = currentOffset + codeLength;
     final Label[] labels = context.currentMethodLabels = new Label[codeLength + 1];
-    System.out.println("Code starts at " + bytecodeStartOffset + " code ends at " + bytecodeEndOffset);
     while (currentOffset < bytecodeEndOffset) {
       final int bytecodeOffset = currentOffset - bytecodeStartOffset;
       final int opcode = classBuffer[currentOffset] & 0xFF;
@@ -2069,10 +2069,17 @@ public class ClassReader {
       }
       currentOffset += attributeLength;
     }
-    
-	deobfuscationContext.zeroOffsetDeltaStackMapFrames = 0;
+
 	deobfuscationContext.stackMapFrames = 0;
     
+	if (stackMapFrameOffset != 0) {
+		loggingContext.stackMapTableStartOffset = stackMapFrameOffset;
+		loggingContext.stackMapTableEndOffset = stackMapTableEndOffset;
+	}
+	else {
+		loggingContext.stackMapTableStartOffset = 0;
+		loggingContext.stackMapTableEndOffset = 0;
+	}
 
     int maxLocals = maxLocalsDeclared;
     int maxStack = maxStackDeclared;
@@ -2101,15 +2108,11 @@ public class ClassReader {
         	deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
         }
     	
-        // TODO: real traversal also looks at currentBytecodeOffset
-        // which results in some real frames not being traversed
-        // alternatively, it may mean that currentBytecodeOffset with
-        // next stack map frame is never reached
         while (stackMapFrameOffset != 0) {
         	if (stackMapFrameOffset < stackMapTableEndOffset) {
         		stackMapFrameOffset =
         				readStackMapFrame(stackMapFrameOffset, stackMapTableEndOffset, compressedFrames, expandFrames, context,
-        						maxStackDeclared, maxLocalsDeclared, codeLength, deobfuscationContext, true);
+        						maxStackDeclared, maxLocalsDeclared, codeLength, deobfuscationContext, loggingContext, true);
         	} else {
         		stackMapFrameOffset = 0;
         	}
@@ -2132,13 +2135,6 @@ public class ClassReader {
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
     }
 
-    // All stack map frames have offsetDelta=0, ignore StackMapTable attribute.
-    if (deobfuscationContext.stackMapFrames == deobfuscationContext.zeroOffsetDeltaStackMapFrames && deobfuscationContext.stackMapFrames != 0) {
-    	System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_TABLE.name(), loggingContext.toString()));
-    	stackMapFrameOffset = 0;
-    	stackMapTableEndOffset = 0;
-    	compressedFrames = true;
-    }
     
     if (stackMapFrameOffset != 0) {
       // The bytecode offset of the first explicit frame is not offset_delta + 1 but only
@@ -2247,7 +2243,7 @@ public class ClassReader {
         if (stackMapFrameOffset < stackMapTableEndOffset) {
           stackMapFrameOffset =
               readStackMapFrame(stackMapFrameOffset, stackMapTableEndOffset, compressedFrames, expandFrames, context,
-            		  maxStackDeclared, maxLocalsDeclared, codeLength, deobfuscationContext, false);
+            		  maxStackDeclared, maxLocalsDeclared, codeLength, deobfuscationContext, loggingContext, false);
         } else {
           stackMapFrameOffset = 0;
         }
@@ -3710,7 +3706,13 @@ public class ClassReader {
       final int maxLocals,
       final int maxBytecode,
       final DeobfuscationContext deobfuscationContext,
-      final boolean dryRun) {
+      final LoggingContext loggingContext,
+      final boolean dryRun
+  ) {
+	// We would usually report stuff on real pass, not on a dry one. When requested to
+	// check all frames, even ones that may not be reached, we need to switch to reporting
+	// frames encountered on dry run because the real pass won't reach them.
+	final boolean reportDeobfuscations = haltOnInvalidFrames ? !dryRun : dryRun;
     int currentOffset = stackMapFrameOffset;
     final char[] charBuffer = context.charBuffer;
     final Label[] labels = context.currentMethodLabels;
@@ -3720,32 +3722,43 @@ public class ClassReader {
     	// skip frames with offsetDelta=0 and also return early if table end is reached
     	while (true) {
         	StackFrameLookupResult res = lookupStackFrame(currentOffset, stackMapTableEndOffset, context.currentFrameOffset, maxBytecode);
+        	loggingContext.stackMapFrameType = res.frameType;
+        	loggingContext.stackMapFrameEntryOffset = currentOffset;
+        	// With padding we don't know next frame offset so this field isn't used which
+            // is why it's safe assign whatever.
+        	loggingContext.stackMapFrameNextEntryOffset = res.nextOffset;
         	if (res.verdict == StackFrameLookupResult.Verdict.VALID) {
         		break;
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.FAKE) {
-        		System.out.println(String.format("Skipping frame with offsetDelta=0 at %d, trying next frame at %d",
-    					currentOffset, res.nextOffset));  
+        		if (reportDeobfuscations) {
+        			System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_FRAME, loggingContext.toString()));          			
+        		}
         		currentOffset = res.nextOffset;
-    			deobfuscationContext.stackMapFrames++;
-    			deobfuscationContext.zeroOffsetDeltaStackMapFrames++;
+        		if (haltOnInvalidFrames) {
+        			return 0;
+        		}
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.OVEREXTENDED) {
-        		System.out.println(String.format("Skipping overextended frame at %d, trying next frame at %d",
-    					currentOffset, res.nextOffset));  
+        		if (reportDeobfuscations) {
+        			System.out.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));          			
+        		}
         		currentOffset = res.nextOffset;
-    			deobfuscationContext.stackMapFrames++;
+        		if (haltOnInvalidFrames) {
+        			return 0;
+        		}
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.PADDING) {
         		// Not incrementing deobfuscationContext.stackMapFrames because this wasn't
         		// a stack map frame presumably.
-        		System.out.println(String.format("Couldn't parse stack frame type=%d at %d, retrying at %d",
-        				res.frameType, currentOffset, currentOffset+1));
+        		if (reportDeobfuscations) {
+        			System.out.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));        			
+        		}
         		currentOffset++;
-        		return 0; // mostly gibberish
+        		if (haltOnInvalidFrames) {
+        			return 0;
+        		}
         	}
-    		System.out.println(String.format("isValid=%b, nextOffset=%d, frameType=%d, stackMapTableEndOffset=%d",
-					res.verdict == StackFrameLookupResult.Verdict.VALID, currentOffset, res.frameType, stackMapTableEndOffset));
         	if (res.verdict == StackFrameLookupResult.Verdict.NO_VALID_FRAMES_LEFT) {
         		// Didn't find a valid frame to be parsed.
         		return 0;
@@ -3823,34 +3836,15 @@ public class ClassReader {
     } else {
       throw new IllegalArgumentException();
     }
-    // spiral
-    // shouldn't offsetDelta be able to overflow as unsigned?
+    // Shouldn't offsetDelta be able to overflow as unsigned?
     offsetDelta = (offsetDelta + 1) & 0xffff;
     context.currentFrameOffset += offsetDelta;
-    
-    String status = " (no error)";
-    if (context.currentFrameStackCount > maxStack) { status += " (stack variables out of reach)"; }
-    if (context.currentFrameLocalCount > maxLocals) { status += " (local variables out of reach)"; }
-    if (context.currentFrameOffset > maxBytecode) { status += " (labels out of reach)" + String.format(" frameType=%d", frameType); }
-    if (frameType == Frame.FULL_FRAME && offsetDelta == 0) { status += " (full_frame with offsetDelta=0)"; }
     
     deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
     deobfuscationContext.setMaxStackMonotonic(context.currentFrameStackCount);
 
-    // spiral
-    // almost certain frames with offsetDelta=0 should be ignored
-    // because otherwise stack count is reset
-	// deobfuscationContext.stackMapFrames++;
-	if (offsetDelta == 0) {
-		deobfuscationContext.zeroOffsetDeltaStackMapFrames++;
-	}
 	deobfuscationContext.stackMapFrames++;
-    
-    System.out.println("Frame label (" + (dryRun ? "dry" : "real") +  ") at " + context.currentFrameOffset + " lables size is "
-    		+ labels.length + " delta is " + offsetDelta + " frame type is  " + frameType + status);
-    
-    // context.currentFrameOffset += offsetDelta + 1;
-    // label will be created multiple times when merging frames but it's not an issue
+
     if(!dryRun) {
     	createLabel(context.currentFrameOffset, labels);
     }

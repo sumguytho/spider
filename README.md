@@ -32,10 +32,15 @@ Omitting stack map table entirely may go against java spec, needs to be checked.
 so, the questions are: do I keep parsing frames after a padding? do I just remove overextended frames? can I nuke StackMapTable?
 
 com.threerings.bureau.data.BureauMarshaller uses java 6 signatures but specifies 49.0, look into it
+perhaps, I miss some attribute or there is another indicator of class version, this doesn't affect anything, so this goes to the back of todo list
 
 there is more to omitting stackmaptable than preventing asm from parsing it
 
 java se 20 jvms says the offsetDelta of the first frame is the offset at which stack starts, not offsetDelta+1, it asm accounts for that by setting currentFrameOffset to -1
+
+frames with offsetdelta=0 only occur when trying to parse stuff after encountering padding bytes
+
+Observation: fake frames, overextended frames and padding are all followed by frames with values below 64, same frame with low offsetDelta. They can all be removed with what follows. Also, fake frames are only encountered if the padding is parsed. Otherwise they aren't reported. It seems that insufficient stack and locals are no longer reported as well. It seems during dry run I used to visit frames that wouldn't otherwise be visited which were where differing stack and locals came from.
 
 # Resources
 

@@ -22,24 +22,16 @@ public class LoggingContext {
 	public int stackMapFrameType;
 	// Stack map frame offset into StackMapTable.
 	public int stackMapFrameEntryOffset;
-	// Size of a stack map frame within StackMapTable.
-	public int stackMapFrameEntrySize;
+	// With fake and overextended frames the offset of next entry is also known.
+	public int stackMapFrameNextEntryOffset;
 	// Size of a StackMapTable attribute.
-	public int stackMapTableSize;
-
-	// Offset in bytecode at which the stack map frame begins.
-	public int stackMapFrameOffset;
-	// Number of bytecode instructions the stack map frame affects.
-	public int stackMapFrameSize;
-	// Total size of a method's code attribute.
-	public int bytecodeSize;
+	public int stackMapTableStartOffset;
+	public int stackMapTableEndOffset;
 	
 	public int localsDeclared;
 	public int localsUsed;
 	public int stackDeclared;
 	public int stackUsed;
-	
-	private String deferredDeobfuscationReport = null;
 	
 	@Override
 	public String toString() {
@@ -59,20 +51,14 @@ public class LoggingContext {
 		
 		sb.append(String.format("stackMapFrameType=%d, ", stackMapFrameType));
 		sb.append(String.format("stackMapFrameEntryOffset=%d, ", stackMapFrameEntryOffset));
-		sb.append(String.format("stackMapFrameEntrySize=%d, ", stackMapFrameEntrySize));
-		sb.append(String.format("stackMapTableSize=%d, ", stackMapTableSize));
-		
-		sb.append(String.format("stackMapFrameOffset=%d, ", stackMapFrameOffset));
-		sb.append(String.format("stackMapFrameSize=%d, ", stackMapFrameSize));
-		sb.append(String.format("bytecodeSize=%d, ", bytecodeSize));
+		sb.append(String.format("stackMapFrameNextEntryOffset=%d, ", stackMapFrameNextEntryOffset));
+		sb.append(String.format("stackMapTableStartOffset=%d, ", stackMapTableStartOffset));
+		sb.append(String.format("stackMapTableEndOffset=%d, ", stackMapTableEndOffset));
 		
 		sb.append(String.format("localsDeclared=%d, ", localsDeclared));
 		sb.append(String.format("localsUsed=%d, ", localsUsed));
 		sb.append(String.format("stackDeclared=%d, ", stackDeclared));
 		sb.append(String.format("stackUsed=%d, ", stackUsed));
-		
-		sb.append(String.format("deferredDeobfuscationReport=%s",
-				(deferredDeobfuscationReport == null ? "(null)" : deferredDeobfuscationReport)));
 		
 		sb.append(")");
 		return sb.toString();
