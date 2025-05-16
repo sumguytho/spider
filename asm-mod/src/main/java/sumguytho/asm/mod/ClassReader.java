@@ -31,15 +31,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import sumguytho.asm.mod.deobfu.DeobfuscationKind;
 import sumguytho.asm.mod.deobfu.DeobfuscationContext;
+import sumguytho.asm.mod.deobfu.DeobfuscationKind;
 import sumguytho.asm.mod.deobfu.FixCyclicSignatureVisitor;
 import sumguytho.asm.mod.deobfu.ParseResult;
 import sumguytho.asm.mod.deobfu.StackFrameLookupResult;
 import sumguytho.asm.mod.deobfu.VerificationTypeInfoValidationResult;
 import sumguytho.asm.mod.logging.LoggingContext;
-
 import sumguytho.asm.mod.signature.SignatureReader;
+import sumguytho.asm.mod.signature.SignatureVisitor;
 import sumguytho.asm.mod.signature.SignatureWriter;
 
 /**
@@ -466,7 +466,7 @@ public class ClassReader {
 
     LoggingContext loggingContext = new LoggingContext();
     DeobfuscationContext deobfuscationContext = new DeobfuscationContext();
-    
+
     // Read the access_flags, this_class, super_class, interface_count and interfaces fields.
     char[] charBuffer = context.charBuffer;
     int currentOffset = header;
@@ -479,7 +479,7 @@ public class ClassReader {
       interfaces[i] = readClass(currentOffset, charBuffer);
       currentOffset += 2;
     }
-    
+
     // A little bit paranoic but readUTF8 may return null.
     if (thisClass != null) {
     	loggingContext.className = thisClass;
@@ -522,17 +522,17 @@ public class ClassReader {
     // - The non standard attributes (linked with their {@link Attribute#nextAttribute} field).
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
-    
+
     int currentAttributeOffset = getFirstAttributeOffset();
     for (int i = readUnsignedShort(currentAttributeOffset - 2); i > 0; --i) {
       // Read the attribute_info's attribute_name and attribute_length fields.
       String attributeName = readUTF8(currentAttributeOffset, charBuffer);
       int attributeLength = readInt(currentAttributeOffset + 2);
       currentAttributeOffset += 6;
-      
+
       // Determine minimum minor and major version the attribute can appear in.
       deobfuscationContext.visitAttributeName(attributeName);
-      
+
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
       // typical classes).
       if (Constants.SOURCE_FILE.equals(attributeName)) {
@@ -592,12 +592,12 @@ public class ClassReader {
       }
       currentAttributeOffset += attributeLength;
     }
-    
+
     if (signature != null && thisClass != null && signature.indexOf(thisClass) != -1) {
-    	// Class/interface signature contains name of class itself, it's possible that  
+    	// Class/interface signature contains name of class itself, it's possible that
     	// a class/interface inherits/implements itself.
     	SignatureWriter writer = new SignatureWriter();
-    	FixCyclicSignatureVisitor fixer = new FixCyclicSignatureVisitor(thisClass, writer);
+    	SignatureVisitor fixer = new FixCyclicSignatureVisitor(thisClass, writer);
     	new SignatureReader(signature).accept(fixer);
     	final String newSignature = writer.toString();
     	final boolean signatureChanged = !signature.equals(newSignature);
@@ -608,7 +608,7 @@ public class ClassReader {
     	}
     	signature = newSignature;
     }
-    
+
     int classVersion = readInt(cpInfoOffsets[1] - 7);
 
     // Following call sets invalid version, actual deduced class version will be set later. We only
@@ -794,10 +794,10 @@ public class ClassReader {
     while (methodsCount-- > 0) {
       currentOffset = readMethod(classVisitor, context, currentOffset, deobfuscationContext, loggingContext);
     }
-    
+
     final int classVersionMajor = classVersion & 0xffff;
     final int classVersionMinor = classVersion >> 16;
-    
+
     // This can't be moved higher to replace the first call to visit because we can only tell
     // real class version after visiting attributes of every method of a class.
     if (deobfuscationContext.suggestedVersionHigherThan(classVersionMajor, classVersionMinor)) {
@@ -807,7 +807,7 @@ public class ClassReader {
     	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
     	System.out.println(String.format("%s %s",
     		DeobfuscationKind.INCORRECT_CLASS_VERSION.name(), loggingContext.toString()));
-    	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);    	
+    	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);
     }
 
     // Visit the end of the class.
@@ -1370,11 +1370,11 @@ public class ClassReader {
       String attributeName = readUTF8(currentOffset, charBuffer);
       int attributeLength = readInt(currentOffset + 2);
       currentOffset += 6;
-      
+
       // Also determine minimum minor and major version the attribute can appear in
       // for each attribute of a method.
       deobfuscationContext.visitAttributeName(attributeName);
-      
+
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
       // typical classes).
       if (Constants.CODE.equals(attributeName)) {
@@ -1966,7 +1966,7 @@ public class ClassReader {
     // - The non standard attributes (linked with their {@link Attribute#nextAttribute} field).
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
-    
+
     // spiral
     // Number of stack map frames in stack map table.
     int stackMapTableEntriesCount = 0;
@@ -1979,7 +1979,7 @@ public class ClassReader {
       int attributeLength = readInt(currentOffset + 2);
 
       deobfuscationContext.visitAttributeName(attributeName);
-      
+
       currentOffset += 6;
       if (Constants.LOCAL_VARIABLE_TABLE.equals(attributeName)) {
         if ((context.parsingOptions & SKIP_DEBUG) == 0) {
@@ -2071,7 +2071,7 @@ public class ClassReader {
     }
 
 	deobfuscationContext.stackMapFrames = 0;
-    
+
 	if (stackMapFrameOffset != 0) {
 		loggingContext.stackMapTableStartOffset = stackMapFrameOffset;
 		loggingContext.stackMapTableEndOffset = stackMapTableEndOffset;
@@ -2089,12 +2089,12 @@ public class ClassReader {
     // Dry run through StackMapTable to figure out actual maxStack and maxLocals.
     if (stackMapFrameOffset != 0) {
     	final int stackMapFrameOffsetSaved = stackMapFrameOffset;
-    	
+
     	deobfuscationContext.resetMaxLocals();
     	deobfuscationContext.resetMaxStack();
     	deobfuscationContext.setMaxLocalsMonotonic(maxLocals);
     	deobfuscationContext.setMaxStackMonotonic(maxStack);
-    	
+
     	context.currentFrameOffset = -1;
     	context.currentFrameType = 0;
     	context.currentFrameLocalCount = 0;
@@ -2102,12 +2102,12 @@ public class ClassReader {
     	context.currentFrameLocalTypes = null;
     	context.currentFrameStackCount = 0;
     	context.currentFrameStackTypes = null;
-    	
+
         if (expandFrames) {
         	context.currentFrameLocalCount = computeImplicitFrameLocals(context);
         	deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
         }
-    	
+
         while (stackMapFrameOffset != 0) {
         	if (stackMapFrameOffset < stackMapTableEndOffset) {
         		stackMapFrameOffset =
@@ -2117,10 +2117,10 @@ public class ClassReader {
         		stackMapFrameOffset = 0;
         	}
         }
-        
+
     	maxLocals = deobfuscationContext.maxLocals;
     	maxStack = deobfuscationContext.maxStack;
-    	
+
     	if (maxLocals != maxLocalsDeclared) {
     		loggingContext.localsDeclared = maxLocalsDeclared;
     		loggingContext.localsUsed = maxLocals;
@@ -2131,11 +2131,11 @@ public class ClassReader {
     		loggingContext.stackUsed = maxStack;
     		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK.name(), loggingContext.toString()));
     	}
-        
+
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
     }
 
-    
+
     if (stackMapFrameOffset != 0) {
       // The bytecode offset of the first explicit frame is not offset_delta + 1 but only
       // offset_delta. Setting the implicit frame offset to -1 allows us to use of the
@@ -2203,9 +2203,9 @@ public class ClassReader {
     // instructions).
     final int wideJumpOpcodeDelta =
         (context.parsingOptions & EXPAND_ASM_INSNS) == 0 ? Constants.WIDE_JUMP_OPCODE_DELTA : 0;
-    
+
     currentOffset = bytecodeStartOffset;
-    while (currentOffset < bytecodeEndOffset) {    	
+    while (currentOffset < bytecodeEndOffset) {
       final int currentBytecodeOffset = currentOffset - bytecodeStartOffset;
 
       // Visit the label and the line number(s) for this bytecode offset, if any.
@@ -2213,7 +2213,7 @@ public class ClassReader {
       if (currentLabel != null) {
         currentLabel.accept(methodVisitor, (context.parsingOptions & SKIP_DEBUG) == 0);
       }
-      
+
       // Visit the stack map frame for this bytecode offset, if any.
       while (stackMapFrameOffset != 0
           && (context.currentFrameOffset == currentBytecodeOffset
@@ -2221,7 +2221,7 @@ public class ClassReader {
         // If there is a stack map frame for this offset, make methodVisitor visit it, and read the
         // next stack map frame if there is one.
         if (context.currentFrameOffset != -1) {
-          if (!compressedFrames || expandFrames) {        	  
+          if (!compressedFrames || expandFrames) {
             methodVisitor.visitFrame(
                 Opcodes.F_NEW,
                 context.currentFrameLocalCount,
@@ -2711,7 +2711,7 @@ public class ClassReader {
                 invisibleTypeAnnotationOffsets, ++currentInvisibleTypeAnnotationIndex);
       }
     }
-    
+
     if (labels[codeLength] != null) {
       methodVisitor.visitLabel(labels[codeLength]);
     }
@@ -3422,7 +3422,7 @@ public class ClassReader {
    * Follows the logic of computeImplicitFrame.
    *
    * @param context information about the class being parsed.
-   * 
+   *
    * @return number of locals of an implicit frame.
    */
   private int computeImplicitFrameLocals(final Context context) {
@@ -3553,9 +3553,9 @@ public class ClassReader {
    * A lookahead check to see whether current stack_map_frame entry, records frame data in
    * the process that can be accessed through a returned {@link StackFrameLookupResult} structure.
    * Follows the logic of readStackMapFrame.
-   * 
+   *
    * This function also checks whether a frame is going to be used based on its position in bytecode.
-   * 
+   *
    * My logic behind stack map frame deobfuscation classification:
    *  - A frame is fully contained within StackMapTable but offsetDelta points beyond the bytecode:
    *  - - If it's a kind of same frame it can be omitted entirely, all following frames can be
@@ -3567,7 +3567,7 @@ public class ClassReader {
    *  - A frame is correct but its offsetDelta is 0xffff:
    *  - - The frame is invalid and shouldn't be traversed. There may be valid frames left in the table.
    *      It's FAKE_STACK_MAP_FRAME.
-   * 
+   *
    * @param stackMapFrameOffset the offset of stack_map_frame in {@link #classFileBuffer}
    * @param stackMapTableEndOffset the offset of the next attribute after StackMapTable in
    * 	{@link #classFileBuffer}
@@ -3611,14 +3611,14 @@ public class ClassReader {
 		  }
 		  retv.offsetDelta = readUnsignedShort(retv.nextOffset);
 		  retv.nextOffset += 2;
-		  
+
 		  if (frameType == Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
 			  // same_locals_1_extended
 			  // one stack item
 			  retv.stackCount = 1;
 			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, 1));
 			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
-				  return retv;				  
+				  return retv;
 			  }
 		  }
 		  else if (frameType >= Frame.CHOP_FRAME && frameType < Frame.SAME_FRAME_EXTENDED) {
@@ -3633,7 +3633,7 @@ public class ClassReader {
 			  // local variables
 			  retv.updateResult(validateMultipleVerificationTypeInfo(retv.nextOffset, stackMapTableEndOffset, retv.localCountDelta));
 			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
-				  return retv;				  
+				  return retv;
 			  }
 		  }
 		  else {
@@ -3661,7 +3661,7 @@ public class ClassReader {
 			  if (retv.verdict != StackFrameLookupResult.Verdict.VALID) {
 				  return retv;
 			  }
-		  }		  
+		  }
 	  }
 	  else {
 		  // Unknown frame type
@@ -3681,7 +3681,7 @@ public class ClassReader {
 	  // Still valid, frame?
 	  return retv;
   }
-  
+
   /**
    * Reads a JVMS 'stack_map_frame' structure and stores the result in the given {@link Context}
    * object. This method can also be used to read a full_frame structure, excluding its frame_type
@@ -3732,7 +3732,7 @@ public class ClassReader {
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.FAKE) {
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_FRAME, loggingContext.toString()));          			
+        			System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_FRAME, loggingContext.toString()));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3741,7 +3741,7 @@ public class ClassReader {
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.OVEREXTENDED) {
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));          			
+        			System.out.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3752,7 +3752,7 @@ public class ClassReader {
         		// Not incrementing deobfuscationContext.stackMapFrames because this wasn't
         		// a stack map frame presumably.
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));        			
+        			System.out.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));
         		}
         		currentOffset++;
         		if (haltOnInvalidFrames) {
@@ -3764,7 +3764,7 @@ public class ClassReader {
         		return 0;
         	}
     	}
-        
+
       // Read the frame_type field.
       frameType = classFileBuffer[currentOffset++] & 0xFF;
     } else {
@@ -3839,7 +3839,7 @@ public class ClassReader {
     // Shouldn't offsetDelta be able to overflow as unsigned?
     offsetDelta = (offsetDelta + 1) & 0xffff;
     context.currentFrameOffset += offsetDelta;
-    
+
     deobfuscationContext.setMaxLocalsMonotonic(context.currentFrameLocalCount);
     deobfuscationContext.setMaxStackMonotonic(context.currentFrameStackCount);
 
@@ -3878,7 +3878,7 @@ public class ClassReader {
     if (dryRun) {
     	return currentOffset + (tag == Frame.ITEM_OBJECT || tag == Frame.ITEM_UNINITIALIZED ? 2 : 0);
     }
-    
+
     switch (tag) {
       case Frame.ITEM_TOP:
         frame[index] = Opcodes.TOP;

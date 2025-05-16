@@ -1,7 +1,7 @@
 package sumguytho.asm.mod.deobfu;
 
 public enum DeobfuscationKind {
-	/* 
+	/*
 	 * Attributes used in a class file suggest a higher class version than the one
 	 * specified in a class file.
 	 */
@@ -23,15 +23,6 @@ public enum DeobfuscationKind {
 	 */
 	FAKE_STACK_MAP_FRAME,
 	/*
-	 * When all frames in a stack map table have their offsetDelta set
-	 * to 0xffff. This doesn't happen anywhere but the code to report
-	 * this issue is there just in case. This is different from a single
-	 * FAKE_STACK_MAP_FRAME occurrence because in this case StackMapTable
-	 * can be removed as a whole, not just a single frame with deviating
-	 * offsetDelta.
-	 */
-	FAKE_STACK_MAP_TABLE,
-	/*
 	 * Signature of a class indicates that a class is a superclass
 	 * of itself. In other words, the class inherits from itself.
 	 */
@@ -51,7 +42,7 @@ public enum DeobfuscationKind {
 	 * less stack map frames are visited than there are in StackMapTable. I decided
 	 * not to report it since frames after an overextended one are always removed so
 	 * you will always get less actual stack map frames this way.
-	 * 
+	 *
 	 * This is the first issue you will encounter when trying to load projectx-pcode.jar
 	 * into enigma. This is because there is some class with padding 0xff bytes so you
 	 * will read offsetDelta from bytes of some other attribute and end up with a huge
