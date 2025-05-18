@@ -33,7 +33,7 @@ public class SpiderCli {
 			throw new CliException("Options -a and -c are exclusive. You should only choose one.");
 		}
 		// If option isn't set it automatically default to all files.
-		res.classesOnly = !classesOnly;
+		res.classesOnly = classesOnly;
 		res.verbose = line.hasOption("v");
 
 		if (line.hasOption("i")) {
@@ -132,7 +132,7 @@ public class SpiderCli {
 			logStream.println("Successfully written " + deobfuscationOptions.output.getPath());
 		}
 		catch(SpiderException ex) {
-			errStream.println(ex.toString());
+			errStream.println(ex.getMessage());
 			System.exit(ExitCodes.ERR);
 		}
 	}

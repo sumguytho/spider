@@ -27,6 +27,8 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 package sumguytho.asm.mod;
 
+import java.io.PrintStream;
+
 /**
  * A {@link ClassVisitor} that generates a corresponding ClassFile structure, as defined in the Java
  * Virtual Machine Specification (JVMS). It can be used alone, to generate a Java class "from
@@ -220,6 +222,8 @@ public class ClassWriter extends ClassVisitor {
    * MethodWriter#COMPUTE_INSERTED_FRAMES}, or {@link MethodWriter#COMPUTE_ALL_FRAMES}.
    */
   private int compute;
+  // Construction of ClassReader requires one now.
+  private PrintStream logStream;
 
   // -----------------------------------------------------------------------------------------------
   // Constructor
@@ -231,8 +235,8 @@ public class ClassWriter extends ClassVisitor {
    * @param flags option flags that can be used to modify the default behavior of this class. Must
    *     be zero or more of {@link #COMPUTE_MAXS} and {@link #COMPUTE_FRAMES}.
    */
-  public ClassWriter(final int flags) {
-    this(null, flags);
+  public ClassWriter(final int flags, final PrintStream logStream) {
+    this(null, flags, logStream);
   }
 
   /**
@@ -259,8 +263,9 @@ public class ClassWriter extends ClassVisitor {
    *     do not affect methods that are copied as is in the new class. This means that neither the
    *     maximum stack size nor the stack frames will be computed for these methods</i>.
    */
-  public ClassWriter(final ClassReader classReader, final int flags) {
+  public ClassWriter(final ClassReader classReader, final int flags, final PrintStream logStream) {
     super(/* latest api = */ Opcodes.ASM9);
+    this.logStream = logStream;
     this.flags = flags;
     symbolTable = classReader == null ? new SymbolTable(this) : new SymbolTable(this, classReader);
     if ((flags & COMPUTE_FRAMES) != 0) {
@@ -773,7 +778,7 @@ public class ClassWriter extends ClassVisitor {
     lastRecordComponent = null;
     firstAttribute = null;
     compute = hasFrames ? MethodWriter.COMPUTE_INSERTED_FRAMES : MethodWriter.COMPUTE_NOTHING;
-    new ClassReader(classFile, 0, /* checkClassVersion = */ false)
+    new ClassReader(classFile, 0, /* checkClassVersion = */ false, logStream)
         .accept(
             this,
             attributes,

@@ -18,12 +18,14 @@ import sumguytho.asm.mod.Opcodes;
 import sumguytho.asm.mod.tree.ClassNode;
 import sumguytho.asm.mod.deobfu.DeobfuscationOptions;
 
+import sumguytho.spider.util.FakeOutputStream;
+
 public class Spider {
-	public byte[] transformClass(byte[] classBytes) {
-		ClassReader cr = new ClassReader(classBytes);
+	public byte[] transformClass(byte[] classBytes, PrintStream logStream) {
+		ClassReader cr = new ClassReader(classBytes, logStream);
 		ClassNode classNode = new ClassNode();
 		cr.accept(classNode, 0);
-		ClassWriter cw = new ClassWriter(0);
+		ClassWriter cw = new ClassWriter(0, logStream);
 		classNode.accept(cw);
 		return cw.toByteArray();
 	}
@@ -38,35 +40,54 @@ public class Spider {
 			final PrintStream logStream
 	) throws SpiderException
 	{
+		final PrintStream verboseStream = opts.verbose ? logStream : new PrintStream(new FakeOutputStream());
+		// First one is type (regular / directory), second one is file path.
+		final String fileStatusFormat = opts.classesOnly ? "Omitting %s %s" : "Copying %s %s as is";
 		try {
 			while (true) {
 			    final JarEntry jarEntryIn = jarInStream.getNextJarEntry();
+
 			    if (jarEntryIn == null) { break; }
 
 			    String filepath = jarEntryIn.getName();
-			    // ZipOutputStream creats empty directories for paths
-			    // ending with a slash.
-			    if (jarEntryIn.isDirectory() && !filepath.endsWith(File.separator)) {
-			    	filepath += File.separator;
+			    // TODO: a better way to do this?
+			    boolean createEntry;
+			    boolean copyContents;
+			    boolean deobfuscate;
+
+			    if (jarEntryIn.isDirectory()) {
+				    // ZipOutputStream creats empty directories for paths
+				    // ending with a slash.
+			    	if (!filepath.endsWith(File.separator)) {
+			    		filepath += File.separator;
+			    	}
+			    	verboseStream.println(String.format(fileStatusFormat, "directory", filepath));
+			    	createEntry = !opts.classesOnly;
+			    	copyContents = false;
+			    	deobfuscate = false;
 			    }
+			    else if (!isClassFilename(filepath)) {
+			    	verboseStream.println(String.format(fileStatusFormat, "regular file", filepath));
+			    	createEntry = !opts.classesOnly;
+			    	copyContents = true;
+			    	deobfuscate = false;
+			    }
+			    else {
+			    	verboseStream.println("Deobfuscating " + filepath);
+			    	createEntry = copyContents = deobfuscate = true;
+			    }
+			    if (!createEntry) { continue; }
+
 			    JarEntry jarEntryOut = new JarEntry(filepath);
 
 			    jarOutStream.putNextEntry(jarEntryOut);
 		        try {
-				    if (!jarEntryIn.isDirectory()) {
-			        	byte[] classBytes = jarInStream.readAllBytes();
-					    if (isClassFilename(filepath)) {
-					    	System.out.println("Deobfuscating " + filepath);
-					    	classBytes = transformClass(classBytes);
-					    }
-					    else {
-						    System.out.println("Skipping file " + filepath);
-					    }
-					    jarOutStream.write(classBytes);
-				    }
-				    else {
-				    	System.out.println("Skipping directory " + filepath);
-				    }
+		        	if (!copyContents) { continue; }
+		        	byte[] fileBytes = jarInStream.readAllBytes();
+		        	if (deobfuscate) {
+		        		fileBytes = transformClass(fileBytes, verboseStream);
+		        	}
+		        	jarOutStream.write(fileBytes);
 		        }
 		        finally {
 		        	jarOutStream.closeEntry();

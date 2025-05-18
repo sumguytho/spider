@@ -30,6 +30,7 @@ package sumguytho.asm.mod;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 
 import sumguytho.asm.mod.deobfu.DeobfuscationContext;
 import sumguytho.asm.mod.deobfu.DeobfuscationKind;
@@ -169,6 +170,10 @@ public class ClassReader {
    * Whether to skip stack map frames after an invalid one was encountered. Set to true by default.
    */
   private boolean haltOnInvalidFrames = true;
+  /**
+   * Stream to output info about deobfuscations to.
+   */
+  private PrintStream logStream;
 
   // -----------------------------------------------------------------------------------------------
   // Constructors
@@ -179,8 +184,8 @@ public class ClassReader {
    *
    * @param classFile the JVMS ClassFile structure to be read.
    */
-  public ClassReader(final byte[] classFile) {
-    this(classFile, 0, classFile.length);
+  public ClassReader(final byte[] classFile, final PrintStream logStream) {
+    this(classFile, 0, classFile.length, logStream);
   }
 
   /**
@@ -193,8 +198,9 @@ public class ClassReader {
   public ClassReader(
       final byte[] classFileBuffer,
       final int classFileOffset,
-      final int classFileLength) { // NOPMD(UnusedFormalParameter) used for backward compatibility.
-    this(classFileBuffer, classFileOffset, /* checkClassVersion = */ true);
+      final int classFileLength,
+      final PrintStream logStream) { // NOPMD(UnusedFormalParameter) used for backward compatibility.
+    this(classFileBuffer, classFileOffset, /* checkClassVersion = */ true, logStream);
   }
 
   /**
@@ -206,8 +212,9 @@ public class ClassReader {
    * @param checkClassVersion whether to check the class version or not.
    */
   ClassReader(
-      final byte[] classFileBuffer, final int classFileOffset, final boolean checkClassVersion) {
+      final byte[] classFileBuffer, final int classFileOffset, final boolean checkClassVersion, final PrintStream logStream) {
     this.classFileBuffer = classFileBuffer;
+    this.logStream = logStream;
     this.b = classFileBuffer;
     // Check the class' major_version. This field is after the magic and minor_version fields, which
     // use 4 and 2 bytes respectively.
@@ -300,8 +307,8 @@ public class ClassReader {
    *     current position to its end.
    * @throws IOException if a problem occurs during reading.
    */
-  public ClassReader(final InputStream inputStream) throws IOException {
-    this(readStream(inputStream, false));
+  public ClassReader(final InputStream inputStream, final PrintStream logStream) throws IOException {
+    this(readStream(inputStream, false), logStream);
   }
 
   /**
@@ -311,10 +318,12 @@ public class ClassReader {
    *     retrieved with the current class loader's {@link ClassLoader#getSystemResourceAsStream}.
    * @throws IOException if an exception occurs during reading.
    */
-  public ClassReader(final String className) throws IOException {
+  public ClassReader(final String className, final PrintStream logStream) throws IOException {
     this(
         readStream(
-            ClassLoader.getSystemResourceAsStream(className.replace('.', '/') + ".class"), true));
+            ClassLoader.getSystemResourceAsStream(className.replace('.', '/') + ".class"), true),
+        	logStream
+        );
   }
 
   /**
@@ -604,7 +613,7 @@ public class ClassReader {
     	if (signatureChanged) {
         	loggingContext.classSignature = signature;
         	loggingContext.classSignatureNew = newSignature;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE.name(), loggingContext.toString()));
+    		logStream.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE.name(), loggingContext.toString()));
     	}
     	signature = newSignature;
     }
@@ -805,7 +814,7 @@ public class ClassReader {
     	loggingContext.classVersionMinor = classVersionMinor;
     	loggingContext.classVersionMajorNew = deobfuscationContext.getSuggestedVersionMajor();
     	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
-    	System.out.println(String.format("%s %s",
+    	logStream.println(String.format("%s %s",
     		DeobfuscationKind.INCORRECT_CLASS_VERSION.name(), loggingContext.toString()));
     	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);
     }
@@ -2124,12 +2133,12 @@ public class ClassReader {
     	if (maxLocals != maxLocalsDeclared) {
     		loggingContext.localsDeclared = maxLocalsDeclared;
     		loggingContext.localsUsed = maxLocals;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS.name(), loggingContext.toString()));
+    		logStream.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS.name(), loggingContext.toString()));
     	}
     	if (maxStack != maxStackDeclared) {
     		loggingContext.stackDeclared = maxStackDeclared;
     		loggingContext.stackUsed = maxStack;
-    		System.out.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK.name(), loggingContext.toString()));
+    		logStream.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK.name(), loggingContext.toString()));
     	}
 
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
@@ -3720,7 +3729,7 @@ public class ClassReader {
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.DUPLICATE) {
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.DUPLICATE_STACK_MAP_FRAME, loggingContext.toString()));
+        			logStream.println(String.format("%s %s", DeobfuscationKind.DUPLICATE_STACK_MAP_FRAME, loggingContext.toString()));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3729,7 +3738,7 @@ public class ClassReader {
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.OVEREXTENDED) {
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));
+        			logStream.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3740,7 +3749,7 @@ public class ClassReader {
         		// Not incrementing deobfuscationContext.stackMapFrames because this wasn't
         		// a stack map frame presumably.
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));
+        			logStream.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));
         		}
         		currentOffset++;
         		if (haltOnInvalidFrames) {
