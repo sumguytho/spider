@@ -107,32 +107,6 @@ public class SpiderCli {
 		return opts;
 	}
 
-	public static void test() {
-		sumguytho.asm.mod.logging.LoggingContext ctx = new sumguytho.asm.mod.logging.LoggingContext();
-		ctx.className = "class";
-		ctx.classSignature = "clssig";
-		ctx.classSignatureNew = "clssignew";
-		ctx.methodName = "meth";
-		ctx.methodSignature = "methsig";
-
-		ctx.classVersionMajor = 1;
-		ctx.classVersionMinor = 2;
-		ctx.classVersionMajorNew = 5;
-		ctx.classVersionMinorNew = 6;
-
-		ctx.localsDeclared = 50;
-		ctx.localsUsed = 51;
-		ctx.stackDeclared = 60;
-		ctx.stackUsed = 61;
-
-		ctx.stackMapTableStartOffset = 100;
-		ctx.stackMapTableEndOffset = 102;
-		ctx.stackMapFrameType = 255;
-		ctx.stackMapFrameEntryOffset = 101;
-		ctx.stackMapFrameNextEntryOffset = 103;
-		System.out.println(ctx.formatAll());
-	}
-
 	public static void main(String[] args) {
 		Options opts = makeOptions();
 		final PrintStream logStream = System.out;
