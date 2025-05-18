@@ -2,8 +2,6 @@ package sumguytho.asm.mod.deobfu;
 
 /**
  * Contains info about stack frame at a certain offset into StackMapTable.
- *
- * @author sumguytho <sumguytho@gmail.com>
  */
 public class StackFrameLookupResult {
 	public Verdict verdict = Verdict.VALID;

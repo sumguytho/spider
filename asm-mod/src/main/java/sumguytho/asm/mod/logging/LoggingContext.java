@@ -6,8 +6,6 @@ import sumguytho.asm.mod.deobfu.Utils;
 /**
  * Contains all the context that is needed to report an obfuscation but is missing at the time
  * of reporting due to the nature of visitor pattern used to implement asm.
- *
- * @author sumguytho <sumguytho@gmail.com>
  */
 public class LoggingContext {
 	public String className = "(null)";

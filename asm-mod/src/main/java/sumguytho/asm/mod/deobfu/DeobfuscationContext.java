@@ -3,8 +3,6 @@ package sumguytho.asm.mod.deobfu;
 /**
  * A class used to store corrections that must be applied to a class
  * as it's parsed.
- * 
- * @author sumguytho <sumguytho@gmail.com>
  */
 public final class DeobfuscationContext {
 	/**
@@ -15,7 +13,7 @@ public final class DeobfuscationContext {
 	 * Minor version indicated by used attributes.
 	 */
 	public int suggestedMinorVersion;
-	
+
 	/**
 	 * Some frames use more locals / stack than what they declare, actual max counts
 	 * should be figured out by traversing stack map frames.
@@ -23,12 +21,12 @@ public final class DeobfuscationContext {
 	public int maxLocals;
 	public int maxStack;
 	public int maxLabels;
-	
+
 	/**
 	 * Counting reachable stack map frames.
 	 */
 	public int stackMapFrames;
-	
+
 	/**
 	 * Updates suggested minor and major version according to attribute encountered.
 	 */
@@ -97,7 +95,7 @@ public final class DeobfuscationContext {
 			setVersionMonotonic(61, 0);
 	    }
 	}
-	
+
 	/**
 	 * Sets major and minor version but only if they are greater
 	 * than the ones stored.
@@ -111,50 +109,50 @@ public final class DeobfuscationContext {
 			suggestedMinorVersion = minor;
 		}
 	}
-	
+
 	/**
 	 * Returns suggested version as int.
 	 */
 	public int suggestedVersionAsInt() {
 		return (suggestedMajorVersion & 0xffff) | (suggestedMinorVersion << 16);
 	}
-	
+
 	public int getSuggestedVersionMajor() { return suggestedMajorVersion; }
 	public int getSuggestedVersionMinor() { return suggestedMinorVersion; }
-	
+
 	public boolean suggestedVersionHigherThan(final int classVersionMajor, final int classVersionMinor) {
 		return suggestedMajorVersion > classVersionMajor ||
 				suggestedMajorVersion == classVersionMajor &&
 				suggestedMinorVersion > classVersionMinor;
 	}
-	
+
 	public void resetMaxLocals() {
 		maxLocals = 0;
 	}
-	
+
 	public void resetMaxStack() {
 		maxStack = 0;
 	}
-	
+
 	public void resetMaxLabels() {
 		maxLabels = 0;
 	}
-	
+
 	public void setMaxLocalsMonotonic(final int maxLocals) {
-		this.maxLocals = maxLocals > this.maxLocals ? maxLocals : this.maxLocals; 
+		this.maxLocals = maxLocals > this.maxLocals ? maxLocals : this.maxLocals;
 	}
-	
+
 	public void setMaxStackMonotonic(final int maxStack) {
-		this.maxStack = maxStack > this.maxStack ? maxStack : this.maxStack; 
+		this.maxStack = maxStack > this.maxStack ? maxStack : this.maxStack;
 	}
-	
+
 	public void setMaxLabelsMonotonic(final int maxLabels) {
-		this.maxLabels = maxLabels > this.maxLabels ? maxLabels : this.maxLabels; 
+		this.maxLabels = maxLabels > this.maxLabels ? maxLabels : this.maxLabels;
 	}
-	
+
 	/**
 	 * Copy pasted from org.objectweb.asm.Constants so that I don't have to modify the source.
-	 * 
+	 *
 	 * Original author: Eric Bruneton
 	 */
 	public class Constants {

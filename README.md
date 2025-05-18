@@ -20,7 +20,6 @@ Timestamp: 2025-05-18 22:10:35.117731319 +0300. Sha-256: 8b61df2b5656019dbc0053f
 # TODO
  - bsd-3
  - redistribute with asm license
- - get rid of my author tags
  - https://docs.gradle.org/current/userguide/distribution_plugin.html
  - include asm license into asm-mod meta-inf https://stackoverflow.com/questions/13254620/meta-inf-services-in-jar-with-gradle
 
