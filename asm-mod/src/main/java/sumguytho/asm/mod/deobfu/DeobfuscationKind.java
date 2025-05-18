@@ -21,7 +21,7 @@ public enum DeobfuscationKind {
 	 * offsetDelta is designed the way it is deliberately so that there
 	 * is never more than one stack frame per bytecode instruction.
 	 */
-	FAKE_STACK_MAP_FRAME,
+	DUPLICATE_STACK_MAP_FRAME,
 	/*
 	 * Signature of a class indicates that a class is a superclass
 	 * of itself. In other words, the class inherits from itself.

@@ -3554,19 +3554,7 @@ public class ClassReader {
    * the process that can be accessed through a returned {@link StackFrameLookupResult} structure.
    * Follows the logic of readStackMapFrame.
    *
-   * This function also checks whether a frame is going to be used based on its position in bytecode.
-   *
-   * My logic behind stack map frame deobfuscation classification:
-   *  - A frame is fully contained within StackMapTable but offsetDelta points beyond the bytecode:
-   *  - - If it's a kind of same frame it can be omitted entirely, all following frames can be
-   *      omitted as well. It's OVEREXTENDED_STACK_MAP_FRAME.
-   *  - - If it's some other kind of frame its offsetDelta needs to be corrected and the frame
-   *      itself should be traversed. Following frames will be omitted. It's OVEREXTENDED_STACK_MAP_FRAME.
-   *  - A frame breaches StackMapTable:
-   *  - - This isn't a valid frame. It's STACK_MAP_FRAME_PADDING.
-   *  - A frame is correct but its offsetDelta is 0xffff:
-   *  - - The frame is invalid and shouldn't be traversed. There may be valid frames left in the table.
-   *      It's FAKE_STACK_MAP_FRAME.
+   * This function also checks whether a frame is going to be visited based on its position in bytecode.
    *
    * @param stackMapFrameOffset the offset of stack_map_frame in {@link #classFileBuffer}
    * @param stackMapTableEndOffset the offset of the next attribute after StackMapTable in
@@ -3668,12 +3656,12 @@ public class ClassReader {
 		  retv.verdict = StackFrameLookupResult.Verdict.PADDING;
 		  return retv;
 	  }
-	  // The frame is valid but it may still be a fake frame (hi, nvidia) or point outside bytecode.
+	  // The frame is valid but it may still be a duplicate frame or point outside bytecode.
 	  // Bear in mind one important detail: even if this code invalidates a frame its
 	  // nextOffset is still correct in case it was valid before.
 	  final int normalizedOffsetDelta = (retv.offsetDelta + 1) & 0xffff;
 	  if (normalizedOffsetDelta == 0) {
-		  retv.verdict = StackFrameLookupResult.Verdict.FAKE;
+		  retv.verdict = StackFrameLookupResult.Verdict.DUPLICATE;
 	  }
 	  else if (currentFrameOffset + normalizedOffsetDelta > maxBytecode) {
 		  retv.verdict = StackFrameLookupResult.Verdict.OVEREXTENDED;
@@ -3730,9 +3718,9 @@ public class ClassReader {
         	if (res.verdict == StackFrameLookupResult.Verdict.VALID) {
         		break;
         	}
-        	else if (res.verdict == StackFrameLookupResult.Verdict.FAKE) {
+        	else if (res.verdict == StackFrameLookupResult.Verdict.DUPLICATE) {
         		if (reportDeobfuscations) {
-        			System.out.println(String.format("%s %s", DeobfuscationKind.FAKE_STACK_MAP_FRAME, loggingContext.toString()));
+        			System.out.println(String.format("%s %s", DeobfuscationKind.DUPLICATE_STACK_MAP_FRAME, loggingContext.toString()));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {

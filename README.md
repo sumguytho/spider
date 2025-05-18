@@ -10,17 +10,9 @@ This project is based on projects asm and asm-tree which are a part of java byte
 ## TODO
 
 # TODO
-
- - make spider-cli build into a single jar with dependencies; actually, build creates a zip distribution that can be used to launch the whole thing
  - bsd-3
- - if the unreachable stack map frames are confirmed also add description to DeobfuscationKind about unreported unreachable frames because there is some other issue with them the same way as with ???
- - name constants in enums in sumguytho.asm.mod
- - remove fake_stack_map_table, it's nonsensical
  - redistribute with asm license
- - https://commons.apache.org/proper/commons-cli/usage.html
- - remove testing stuff
  - test with latest projectx-pcode.jar
- - rename fake frames to duplicate, overextended frames are fake as well, there is no consistency
  - get rid of my author tags
  - https://docs.gradle.org/current/userguide/distribution_plugin.html
  - include asm license into asm-mod meta-inf https://stackoverflow.com/questions/13254620/meta-inf-services-in-jar-with-gradle

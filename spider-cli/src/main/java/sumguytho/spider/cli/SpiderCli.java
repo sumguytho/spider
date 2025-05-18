@@ -1,6 +1,7 @@
 package sumguytho.spider.cli;
 
 import java.io.File;
+import java.io.PrintStream;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
@@ -9,6 +10,9 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.Option;
+
+import sumguytho.spider.Spider;
+import sumguytho.spider.SpiderException;
 
 import sumguytho.asm.mod.deobfu.DeobfuscationOptions;
 
@@ -53,9 +57,8 @@ public class SpiderCli {
 		helpFormatter.printHelp(progName, "Deobfuscates a jar file.", opts, "", true);
 	}
 
-	public static void main(String[] args) {
+	private static Options makeOptions() {
 		Options opts = new Options();
-
 		opts.addOption(
 			Option.builder("h")
                 .longOpt("help")
@@ -101,24 +104,37 @@ public class SpiderCli {
 	                .desc("output jar will only contain class files")
 	                .build()
 			);
+		return opts;
+	}
+
+	public static void main(String[] args) {
+		Options opts = makeOptions();
+		final PrintStream logStream = System.out;
+		final PrintStream errStream = System.err;
 
 		CommandLine line = null;
-		DeobfuscationOptions spiderOptions = null;
+		DeobfuscationOptions deobfuscationOptions = null;
 
 		try {
 			CommandLineParser parser = new DefaultParser();
 			line = parser.parse(opts, args);
-			spiderOptions = parseLine(line, opts);
+			deobfuscationOptions = parseLine(line, opts);
 		}
 		catch (ParseException | CliException ex) {
-			System.out.println(ex.getMessage() + "\nUse option -h for help.");
+			errStream.println(ex.getMessage() + "\nUse option -h for help.");
 			System.exit(ExitCodes.ERR);
 		}
-		System.out.println(spiderOptions.toString());
 
-		// Spider sp = new Spider();
-		// System.out.println("Transforming " + args[0]);
-		// sp.transform(args[0]);
+		Spider sp = new Spider();
+		try {
+			logStream.println("Deobfuscating " + deobfuscationOptions.input.getPath());
+			sp.transformJar(deobfuscationOptions, logStream);
+			logStream.println("Successfully written " + deobfuscationOptions.output.getPath());
+		}
+		catch(SpiderException ex) {
+			errStream.println(ex.toString());
+			System.exit(ExitCodes.ERR);
+		}
 	}
 	private static final class CliException extends Exception {
 		public CliException(String message) {

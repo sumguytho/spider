@@ -2,7 +2,7 @@ package sumguytho.asm.mod.deobfu;
 
 /**
  * Contains info about stack frame at a certain offset into StackMapTable.
- * 
+ *
  * @author sumguytho <sumguytho@gmail.com>
  */
 public class StackFrameLookupResult {
@@ -15,7 +15,7 @@ public class StackFrameLookupResult {
 	public int localCount;
 	public int localCountDelta;
 	public int stackCount;
-	
+
 	public void updateResult(VerificationTypeInfoValidationResult res) {
 		if (res.result == ParseResult.VALID) {
 			nextOffset = res.nextOffset;
@@ -25,12 +25,17 @@ public class StackFrameLookupResult {
 			verdict = Verdict.PADDING;
 		}
 	}
-	
+
 	public enum Verdict {
+		// Frame can be parsed by readStackMapFrame.
 		VALID,
-		FAKE,
+		// Frame has offsetDelta=0xffff.
+		DUPLICATE,
+		// Frame begins beyond bytecode.
 		OVEREXTENDED,
+		// Frame can't be parsed.
 		PADDING,
+		// No entries left in StackMapTable.
 		NO_VALID_FRAMES_LEFT;
 	}
 }

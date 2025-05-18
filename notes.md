@@ -14,6 +14,15 @@ Another thing I've noticed is that removing the stack map table attribute from p
  - stack map frames are used a hint and can be removed without any functional consequences
  - the class version of 49.0 is actually correct and all stack map frames are simply fake
 
+## What my initial stack map frame logic looked like
+- A frame is fully contained within StackMapTable but offsetDelta points beyond the bytecode:
+- - If it's a kind of same_frame it can be omitted entirely, all following frames can be omitted as well. It's OVEREXTENDED_STACK_MAP_FRAME.
+- - If it's some other kind of frame its offsetDelta needs to be corrected and the frame itself should be traversed (EDIT: as it later turned out, it was never actually traversed outside of dry run). Following frames will be omitted. It's OVEREXTENDED_STACK_MAP_FRAME.
+- A frame breaches StackMapTable:
+- - This can't be a valid frame. It's STACK_MAP_FRAME_PADDING.
+- A frame is correct but its offsetDelta is 0xffff:
+- - The frame is invalid and shouldn't be traversed. There may be valid frames left in the table. It's DUPLICATE_STACK_MAP_FRAME.
+
 # Outer class null check in FabricMC Enigma
 
 com/threerings/tudey/config/TagConfig declares com/threerings/tudey/config/a its inner class and doesn't provide outer class for it. According to Java SE 20 JVMS 4.7.6. this can be valid:
@@ -36,4 +45,4 @@ com/google/common/util/concurrent/c has frame 0xff at offset 2143.
 
 com/google/common/cache/CacheBuilder has frame 0x3f at offset 6551.
 
-com/threerings/editor/swing/TreeEditorPanel declares 6 max locals but some frame uses 7 in some of its methods.
+com/threerings/editor/swing/TreeEditorPanel declares 6 max locals but some frame uses 7 in some of its methods. The frame in question comes after padding.
