@@ -1,5 +1,8 @@
 package sumguytho.asm.mod.logging;
 
+import sumguytho.asm.mod.deobfu.DeobfuscationKind;
+import sumguytho.asm.mod.deobfu.Utils;
+
 /**
  * Contains all the context that is needed to report an obfuscation but is missing at the time
  * of reporting due to the nature of visitor pattern used to implement asm.
@@ -32,6 +35,74 @@ public class LoggingContext {
 	public int localsUsed;
 	public int stackDeclared;
 	public int stackUsed;
+
+	public String formatAll() {
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (DeobfuscationKind kind : DeobfuscationKind.values()) {
+			if (first) { first = !first; }
+			else { sb.append('\n'); }
+			sb.append(format(kind));
+		}
+		return sb.toString();
+	}
+
+	public String format(DeobfuscationKind kind) {
+		switch(kind) {
+		case INCORRECT_CLASS_VERSION:
+			return String.format("Class version suggestion: %s FROM %d.%d TO %d.%d", className,
+					classVersionMajor, classVersionMinor, classVersionMajorNew, classVersionMinorNew);
+		case CYCLIC_SUPERCLASS_REFERENCE:
+			return String.format("Cyclic superclass reference: %s FROM %s TO %s", className, classSignature, classSignatureNew);
+		case DUPLICATE_STACK_MAP_FRAME:
+			return String.format(
+					"Duplicate stack map frame: %s %s",
+					Utils.formatMethod(className, methodName, methodSignature),
+					Utils.formatStackMapTableRef(
+							stackMapTableStartOffset,
+							stackMapTableEndOffset,
+							stackMapFrameEntryOffset,
+							stackMapFrameType
+					)
+			);
+		case INSUFFICIENT_MAX_LOCALS:
+			return String.format(
+					"Insufficient max locals: %s FROM %d TO %d",
+					Utils.formatMethod(className, methodName, methodSignature),
+					localsDeclared,
+					localsUsed);
+		case INSUFFICIENT_MAX_STACK:
+			return String.format(
+					"Insufficient max stack: %s FROM %d TO %d",
+					Utils.formatMethod(className, methodName, methodSignature),
+					stackDeclared,
+					stackUsed);
+		case OVEREXTENDED_STACK_MAP_FRAME:
+			return String.format(
+					"Overextended stack map frame: %s %s",
+					Utils.formatMethod(className, methodName, methodSignature),
+					Utils.formatStackMapTableRef(
+							stackMapTableStartOffset,
+							stackMapTableEndOffset,
+							stackMapFrameEntryOffset,
+							stackMapFrameType,
+							stackMapFrameNextEntryOffset
+					)
+			);
+		case STACK_MAP_FRAME_PADDING:
+			return String.format(
+					"Stack map frame padding: %s %s",
+					Utils.formatMethod(className, methodName, methodSignature),
+					Utils.formatStackMapTableRef(
+							stackMapTableStartOffset,
+							stackMapTableEndOffset,
+							stackMapFrameEntryOffset,
+							stackMapFrameType
+					)
+			);
+		}
+		return "(unknown)";
+	}
 
 	@Override
 	public String toString() {

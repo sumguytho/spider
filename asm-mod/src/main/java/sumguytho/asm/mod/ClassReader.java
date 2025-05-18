@@ -613,7 +613,7 @@ public class ClassReader {
     	if (signatureChanged) {
         	loggingContext.classSignature = signature;
         	loggingContext.classSignatureNew = newSignature;
-    		logStream.println(String.format("%s %s", DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE.name(), loggingContext.toString()));
+    		logStream.println(loggingContext.format(DeobfuscationKind.CYCLIC_SUPERCLASS_REFERENCE));
     	}
     	signature = newSignature;
     }
@@ -814,8 +814,7 @@ public class ClassReader {
     	loggingContext.classVersionMinor = classVersionMinor;
     	loggingContext.classVersionMajorNew = deobfuscationContext.getSuggestedVersionMajor();
     	loggingContext.classVersionMinorNew = deobfuscationContext.getSuggestedVersionMinor();
-    	logStream.println(String.format("%s %s",
-    		DeobfuscationKind.INCORRECT_CLASS_VERSION.name(), loggingContext.toString()));
+    	logStream.println(loggingContext.format(DeobfuscationKind.INCORRECT_CLASS_VERSION));
     	classVisitor.visit(deobfuscationContext.suggestedVersionAsInt(), accessFlags, thisClass, signature, superClass, interfaces);
     }
 
@@ -2133,12 +2132,12 @@ public class ClassReader {
     	if (maxLocals != maxLocalsDeclared) {
     		loggingContext.localsDeclared = maxLocalsDeclared;
     		loggingContext.localsUsed = maxLocals;
-    		logStream.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_LOCALS.name(), loggingContext.toString()));
+    		logStream.println(loggingContext.format(DeobfuscationKind.INSUFFICIENT_MAX_LOCALS));
     	}
     	if (maxStack != maxStackDeclared) {
     		loggingContext.stackDeclared = maxStackDeclared;
     		loggingContext.stackUsed = maxStack;
-    		logStream.println(String.format("%s %s", DeobfuscationKind.INSUFFICIENT_MAX_STACK.name(), loggingContext.toString()));
+    		logStream.println(loggingContext.format(DeobfuscationKind.INSUFFICIENT_MAX_STACK));
     	}
 
     	stackMapFrameOffset = stackMapFrameOffsetSaved;
@@ -3722,14 +3721,14 @@ public class ClassReader {
         	loggingContext.stackMapFrameType = res.frameType;
         	loggingContext.stackMapFrameEntryOffset = currentOffset;
         	// With padding we don't know next frame offset so this field isn't used which
-            // is why it's safe assign whatever.
+            // is why it's safe to assign whatever.
         	loggingContext.stackMapFrameNextEntryOffset = res.nextOffset;
         	if (res.verdict == StackFrameLookupResult.Verdict.VALID) {
         		break;
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.DUPLICATE) {
         		if (reportDeobfuscations) {
-        			logStream.println(String.format("%s %s", DeobfuscationKind.DUPLICATE_STACK_MAP_FRAME, loggingContext.toString()));
+        			logStream.println(loggingContext.format(DeobfuscationKind.DUPLICATE_STACK_MAP_FRAME));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3738,7 +3737,7 @@ public class ClassReader {
         	}
         	else if (res.verdict == StackFrameLookupResult.Verdict.OVEREXTENDED) {
         		if (reportDeobfuscations) {
-        			logStream.println(String.format("%s %s", DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME, loggingContext.toString()));
+        			logStream.println(loggingContext.format(DeobfuscationKind.OVEREXTENDED_STACK_MAP_FRAME));
         		}
         		currentOffset = res.nextOffset;
         		if (haltOnInvalidFrames) {
@@ -3749,7 +3748,7 @@ public class ClassReader {
         		// Not incrementing deobfuscationContext.stackMapFrames because this wasn't
         		// a stack map frame presumably.
         		if (reportDeobfuscations) {
-        			logStream.println(String.format("%s %s", DeobfuscationKind.STACK_MAP_FRAME_PADDING, loggingContext.toString()));
+        			logStream.println(loggingContext.format(DeobfuscationKind.STACK_MAP_FRAME_PADDING));
         		}
         		currentOffset++;
         		if (haltOnInvalidFrames) {
