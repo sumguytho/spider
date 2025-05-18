@@ -9,10 +9,17 @@ This project is based on projects asm and asm-tree which are a part of java byte
 # Quick start
 ## TODO
 
+# Versions of projectx-pcode.jar the deobfuscator works with
+
+The version shouldn't affect anything but I'll list every version I have tested / will test deobfuscator on just in case.
+
+Timestamp: 2022-11-03 21:51:27.000000000 +0300. Sha-256: e4a76086bfd0682e4bb3d1b2791a3bc15d59fbd82ff27f0ce2c5d632c1c5155f.
+
+Timestamp: 2025-05-18 22:10:35.117731319 +0300. Sha-256: 8b61df2b5656019dbc0053f6e4b216759e6d1fe832d1b9e13bcab1512fa19f92.
+
 # TODO
  - bsd-3
  - redistribute with asm license
- - test with latest projectx-pcode.jar
  - get rid of my author tags
  - https://docs.gradle.org/current/userguide/distribution_plugin.html
  - include asm license into asm-mod meta-inf https://stackoverflow.com/questions/13254620/meta-inf-services-in-jar-with-gradle
