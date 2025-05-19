@@ -60,7 +60,8 @@ public class LoggingContext {
 							stackMapTableStartOffset,
 							stackMapTableEndOffset,
 							stackMapFrameEntryOffset,
-							stackMapFrameType
+							stackMapFrameType,
+							stackMapFrameNextEntryOffset
 					)
 			);
 		case INSUFFICIENT_MAX_LOCALS:
