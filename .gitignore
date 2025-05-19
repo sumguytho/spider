@@ -5,3 +5,7 @@
 build/
 
 /.settings/
+
+# Ignore Eclipse JDT specific stuff
+.project
+.classpath
