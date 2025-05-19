@@ -9,3 +9,4 @@ build/
 # Ignore Eclipse JDT specific stuff
 .project
 .classpath
+.settings/
