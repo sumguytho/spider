@@ -37,12 +37,12 @@ During some refactoring of Enigma someone added a check that prevents an inner c
 
 # Other
 
-com.threerings.bureau.data.BureauMarshaller uses version 50.0 signatures but specifies version 49.0. This has to be cause by something unrelated to code which I do not test for because it doesn't get in the way of my needs. Maybe look into it later? Probably not.
+com/threerings/bureau/data/BureauMarshaller uses version 50.0 signatures but specifies version 49.0. This has to be caused by something unrelated to code attribute which I do not test for because it doesn't get in the way of my needs. Maybe look into it later? Probably not.
 
 com/google/common/collect/SortedLists uses StackMapTable despite specifying class version 49.0.
 
-com/google/common/util/concurrent/c has frame 0xff at offset 2143.
+com/google/common/util/concurrent/c has frame 0xff at offset 2143 (offsetDelta lands beyond bytecode).
 
-com/google/common/cache/CacheBuilder has frame 0x3f at offset 6551.
+com/google/common/cache/CacheBuilder has frame 0x3f at offset 6551 (offsetDelta lands beyond bytecode).
 
 com/threerings/editor/swing/TreeEditorPanel declares 6 max locals but some frame uses 7 in some of its methods. The frame in question comes after padding.
