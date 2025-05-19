@@ -31,13 +31,13 @@ Alternatively, a pre-compiled distribution can be downloaded from releases secti
 Say, you want to deobfuscate file `/some/path/file.jar` and write output jar to `/some/path/file.out.jar`. The command line will look like this (assuming you've unpacked a distribution and are currently in a directory you've unpackaged it into):
 
 ```
-./spider-cli-0.1.0/bin/spider-cli -i /some/path/file.jar -o /some/path/file.out.jar
+./spider-cli/bin/spider-cli -i /some/path/file.jar -o /some/path/file.out.jar
 ```
 
 Or
 
 ```
-spider-cli-0.1.0/bin/spider-cli.bat -i /some/path/file.jar -o /some/path/file.out.jar
+spider-cli/bin/spider-cli.bat -i /some/path/file.jar -o /some/path/file.out.jar
 ```
 
 ## Additional info
@@ -47,6 +47,20 @@ Option -h can be used to see all available options.
 Specifying the same file as both input and output is unsupported, you will get an IO error.
 
 Be aware that logs produced when supplying option -v may reach tens of megabytes in size depending on size of input jar. Big logs that can't be opened with usual text editors may be viewed using memory-mapping based log viewers like [Klogg](https://github.com/variar/klogg).
+
+# Deobfuscation descriptions
+
+A brief summary of each obfuscation detected by deobfuscator:
+
+ - Incorrect class version: class contains some attributes that suggest a different class version.
+ - Stack map frame padding: invalid frames detected in StackMapTable attribute.
+ - Duplicate stack map frame: StackMapTable provides multiple frames for a single bytecode offset.
+ - Cyclic superclass reference: a class inherits from itself.
+ - Insufficient max locals: some method of a class uses more local variables than it declares.
+ - Insufficient max stack: size of operand stack of some method of a class needs to be bigger than what the method declares.
+ - Overextended stack map frame: stack map frame starts past the end of bytecode.
+
+Note that some deobfuscation heuristics were added during a phase when deobfuscator parsed invalid stack map frames instead of ignoring them and as a result some deobfuscations listed here may never actually be reported.
 
 # Versions of projectx-pcode.jar the deobfuscator works with
 

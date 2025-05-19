@@ -23,6 +23,8 @@ Another thing I've noticed is that removing the stack map table attribute from p
 - A frame is correct but its offsetDelta is 0xffff:
 - - The frame is invalid and shouldn't be traversed. There may be valid frames left in the table. It's DUPLICATE_STACK_MAP_FRAME.
 
+It should be noted that the way invalid frames are resolved by the JVM should have been taken into account but I didn't do that. I just did what works and things didn't break. JVM is a huge project and is really hard to navigate as someone unfamiliar with it. That said, it would be interesting to maybe sometime in the distant future have a look at stack map frame parser in JVM.
+
 # Outer class null check in FabricMC Enigma
 
 com/threerings/tudey/config/TagConfig declares com/threerings/tudey/config/a its inner class and doesn't provide outer class for it. According to Java SE 20 JVMS 4.7.6. this can be valid:
