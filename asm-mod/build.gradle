@@ -14,3 +14,5 @@ java {
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
+
+version = "9.4"

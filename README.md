@@ -18,9 +18,6 @@ Timestamp: 2022-11-03 21:51:27.000000000 +0300. Sha-256: e4a76086bfd0682e4bb3d1b
 Timestamp: 2025-05-18 22:10:35.117731319 +0300. Sha-256: 8b61df2b5656019dbc0053f6e4b216759e6d1fe832d1b9e13bcab1512fa19f92.
 
 # TODO
- - redistribute with asm license
- - https://docs.gradle.org/current/userguide/distribution_plugin.html
- - include asm license into asm-mod meta-inf https://stackoverflow.com/questions/13254620/meta-inf-services-in-jar-with-gradle
 
 # Resources
 

@@ -17,3 +17,11 @@ java {
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
+
+jar {
+    into ("META-INF") {
+        from "$rootProject.projectDir/LICENSE"
+    }
+}
+
+version = "0.1.0"
